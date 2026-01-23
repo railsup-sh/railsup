@@ -19,16 +19,12 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --check
-        working-directory: railsup
 
       - name: Run clippy
         run: cargo clippy -- -D warnings
-        working-directory: railsup
 
       - name: Run tests
         run: cargo test
-        working-directory: railsup
 
       - name: Build release
         run: cargo build --release
-        working-directory: railsup

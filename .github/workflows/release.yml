@@ -41,18 +41,16 @@ jobs:
       - name: Run tests
         if: matrix.name == 'darwin_arm64'
         run: cargo test
-        working-directory: railsup
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
-        working-directory: railsup
 
       - name: Create tarball
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
-          cd railsup/target/${{ matrix.target }}/release
+          cd target/${{ matrix.target }}/release
           tar czf railsup_${VERSION}_${{ matrix.name }}.tar.gz railsup
-          mv railsup_${VERSION}_${{ matrix.name }}.tar.gz ../../../../
+          mv railsup_${VERSION}_${{ matrix.name }}.tar.gz ../../../
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

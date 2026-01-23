@@ -1,0 +1,24 @@
+[package]
+name = "railsup"
+version = "0.1.0"
+edition = "2021"
+description = "The better way to install and run Ruby on Rails"
+license = "MIT"
+repository = "https://github.com/thechangelog/railsup"
+homepage = "https://railsup.sh"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+which = "7"
+anyhow = "1"
+thiserror = "2"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1

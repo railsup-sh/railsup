@@ -1,0 +1,177 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+            name: darwin_arm64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            name: darwin_amd64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: linux_amd64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            name: linux_arm64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Run tests
+        if: matrix.name == 'darwin_arm64'
+        run: cargo test
+        working-directory: railsup
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+        working-directory: railsup
+
+      - name: Create tarball
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          cd railsup/target/${{ matrix.target }}/release
+          tar czf railsup_${VERSION}_${{ matrix.name }}.tar.gz railsup
+          mv railsup_${VERSION}_${{ matrix.name }}.tar.gz ../../../../
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: railsup_${{ matrix.name }}
+          path: railsup_*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/railsup_*.tar.gz
+          generate_release_notes: true
+
+      - name: Publish to bkt.sh
+        env:
+          BKT_API_TOKEN: ${{ secrets.BKT_API_TOKEN }}
+          BKT_USERNAME: ${{ secrets.BKT_USERNAME }}
+        run: |
+          set -euo pipefail
+          VERSION=${GITHUB_REF#refs/tags/v}
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          API_BASE="https://api.bkt.sh/api/v1"
+
+          echo "Creating release $TAG_NAME on bkt.sh..."
+
+          # Step 1: Create Release
+          RELEASE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/projects/$BKT_USERNAME/railsup/releases" \
+            -H "Authorization: Bearer $BKT_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"version\": \"$TAG_NAME\",
+              \"tag_name\": \"$TAG_NAME\",
+              \"notes\": \"Release $TAG_NAME\",
+              \"is_prerelease\": false
+            }")
+
+          HTTP_CODE=$(echo "$RELEASE_RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$RELEASE_RESPONSE" | sed '$d')
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $RESPONSE_BODY"
+
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+            echo "Failed to create release on bkt.sh"
+            exit 1
+          fi
+
+          RELEASE_ID=$(echo "$RESPONSE_BODY" | jq -r '.data.id')
+          if [ "$RELEASE_ID" = "null" ] || [ -z "$RELEASE_ID" ]; then
+            echo "Failed to parse release ID"
+            exit 1
+          fi
+          echo "Created release ID: $RELEASE_ID"
+
+          # Function to upload a binary
+          upload_binary() {
+            local FILE=$1
+            local OS=$2
+            local ARCH=$3
+
+            local SIZE=$(stat -c%s "$FILE")
+            local CHECKSUM=$(sha256sum "$FILE" | cut -d' ' -f1)
+            local FILENAME=$(basename "$FILE")
+
+            echo "Uploading $FILENAME ($OS/$ARCH, $SIZE bytes)..."
+
+            # Initiate upload
+            UPLOAD_RESPONSE=$(curl -s -X POST "$API_BASE/releases/$RELEASE_ID/binaries" \
+              -H "Authorization: Bearer $BKT_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"os\": \"$OS\",
+                \"arch\": \"$ARCH\",
+                \"filename\": \"$FILENAME\",
+                \"size\": $SIZE,
+                \"checksum\": \"$CHECKSUM\",
+                \"force\": false
+              }")
+
+            BINARY_ID=$(echo "$UPLOAD_RESPONSE" | jq -r '.data.binary_id // .binary_id')
+            UPLOAD_URL=$(echo "$UPLOAD_RESPONSE" | jq -r '.data.upload_url // .upload_url')
+
+            if [ "$BINARY_ID" = "null" ]; then
+              echo "Failed to initiate upload: $UPLOAD_RESPONSE"
+              exit 1
+            fi
+
+            # Upload to presigned URL
+            curl -s -X PUT "$UPLOAD_URL" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@$FILE"
+
+            # Confirm upload
+            curl -s -X POST "$API_BASE/binaries/$BINARY_ID/confirm" \
+              -H "Authorization: Bearer $BKT_API_TOKEN"
+
+            echo "Uploaded $FILENAME"
+          }
+
+          # Upload all architectures
+          cd artifacts
+          upload_binary "railsup_${VERSION}_darwin_arm64.tar.gz" "darwin" "arm64"
+          upload_binary "railsup_${VERSION}_darwin_amd64.tar.gz" "darwin" "amd64"
+          upload_binary "railsup_${VERSION}_linux_amd64.tar.gz" "linux" "amd64"
+          upload_binary "railsup_${VERSION}_linux_arm64.tar.gz" "linux" "arm64"
+
+          echo ""
+          echo "Published railsup $TAG_NAME to bkt.sh"
+          echo "Install: bkt install railsup"

@@ -19,15 +19,16 @@ jobs:
           - os: macos-14
             target: aarch64-apple-darwin
             name: darwin_arm64
-          - os: macos-15-large
+          - os: macos-14
             target: x86_64-apple-darwin
             name: darwin_amd64
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             name: linux_amd64
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             name: linux_arm64
+            cross: true
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -41,6 +42,14 @@ jobs:
       - name: Run tests
         if: matrix.name == 'darwin_arm64'
         run: cargo test
+
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}

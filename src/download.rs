@@ -13,6 +13,7 @@ use std::path::Path;
 use tar::Archive;
 
 const RUBY_RELEASES_URL: &str = "https://github.com/railsup-sh/ruby/releases/download";
+const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/railsup-sh/ruby/releases";
 
 /// Generate the download URL for a Ruby version
 pub fn ruby_download_url(version: &str) -> String {
@@ -188,6 +189,79 @@ pub fn extract_tarball(tarball: &Path, dest_dir: &Path) -> Result<()> {
         .with_context(|| format!("Failed to extract tarball to: {}", dest_dir.display()))?;
 
     Ok(())
+}
+
+/// Fetch available Ruby versions from GitHub releases
+pub fn fetch_available_versions() -> Result<Vec<String>> {
+    let response = ureq::get(GITHUB_API_RELEASES)
+        .set("User-Agent", "railsup")
+        .call()
+        .context("Failed to fetch releases from GitHub")?;
+
+    if response.status() != 200 {
+        bail!("Failed to fetch releases: HTTP {}", response.status());
+    }
+
+    let body = response.into_string()?;
+    let releases: Vec<serde_json::Value> = serde_json::from_str(&body)
+        .context("Failed to parse GitHub releases response")?;
+
+    let mut versions: Vec<String> = releases
+        .iter()
+        .filter_map(|r| r.get("tag_name"))
+        .filter_map(|t| t.as_str())
+        .map(|t| t.trim_start_matches('v').to_string())
+        .collect();
+
+    // Sort by version (newest first)
+    versions.sort_by(|a, b| compare_versions(b, a));
+    Ok(versions)
+}
+
+/// Compare two version strings (simple semver comparison)
+fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
+    let a_parts: Vec<u32> = a.split('.').filter_map(|p| p.parse().ok()).collect();
+    let b_parts: Vec<u32> = b.split('.').filter_map(|p| p.parse().ok()).collect();
+
+    for (av, bv) in a_parts.iter().zip(b_parts.iter()) {
+        match av.cmp(bv) {
+            std::cmp::Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+
+    a_parts.len().cmp(&b_parts.len())
+}
+
+/// Get the series (major.minor) from a version string
+pub fn version_series(version: &str) -> String {
+    let parts: Vec<&str> = version.split('.').collect();
+    if parts.len() >= 2 {
+        format!("{}.{}", parts[0], parts[1])
+    } else {
+        version.to_string()
+    }
+}
+
+/// Find the latest available version in a series
+pub fn find_latest_in_series(series: &str, available: &[String]) -> Option<String> {
+    available
+        .iter()
+        .find(|v| version_series(v) == series)
+        .cloned()
+}
+
+/// Check if a version is available
+pub fn is_version_available(version: &str) -> Result<bool> {
+    let url = ruby_download_url(version);
+    let response = ureq::head(&url)
+        .call();
+
+    match response {
+        Ok(r) => Ok(r.status() == 200),
+        Err(ureq::Error::Status(404, _)) => Ok(false),
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// Download and install a Ruby version

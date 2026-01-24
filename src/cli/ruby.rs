@@ -10,11 +10,8 @@ use anyhow::{bail, Result};
 use clap::Subcommand;
 use std::fs;
 
-/// Default Ruby version for auto-bootstrap
+/// Default Ruby version for auto-bootstrap (fetched at runtime, fallback)
 pub const DEFAULT_RUBY_VERSION: &str = "4.0.1";
-
-/// Available Ruby versions (built and hosted on GitHub Releases)
-pub const AVAILABLE_VERSIONS: &[&str] = &["4.0.1", "3.4.8"];
 
 #[derive(Subcommand)]
 pub enum RubyCommands {
@@ -64,16 +61,55 @@ pub fn run(cmd: RubyCommands) -> Result<()> {
 
 /// Install a Ruby version
 fn install(version: &str, force: bool) -> Result<()> {
+    // Handle "latest" keyword
     let version = if version == "latest" {
-        DEFAULT_RUBY_VERSION
+        match download::fetch_available_versions() {
+            Ok(versions) if !versions.is_empty() => versions[0].clone(),
+            _ => DEFAULT_RUBY_VERSION.to_string(),
+        }
     } else {
-        version
+        version.to_string()
     };
 
     ui::info(&format!("Installing Ruby {}...", version));
 
+    // Check if version is available before attempting download
+    match download::is_version_available(&version) {
+        Ok(true) => {
+            // Version is available, proceed with download
+        }
+        Ok(false) => {
+            // Version not available - guide user to latest in series
+            let series = download::version_series(&version);
+            println!("Ruby {} is no longer available.", version);
+
+            if let Ok(available) = download::fetch_available_versions() {
+                if let Some(latest) = download::find_latest_in_series(&series, &available) {
+                    println!();
+                    println!("The latest {} series version is: {}", series, latest);
+                    println!();
+                    println!("To install it, run:");
+                    println!("  railsup ruby install {}", latest);
+                    return Ok(());
+                } else {
+                    println!();
+                    println!("No versions available in the {} series.", series);
+                    println!("Available versions:");
+                    for v in available.iter().take(5) {
+                        println!("  {}", v);
+                    }
+                }
+            }
+
+            bail!("Ruby {} is not available for download", version);
+        }
+        Err(_) => {
+            // Network error - try anyway, download will give better error
+        }
+    }
+
     // Download and extract
-    download::download_ruby(version, force)?;
+    download::download_ruby(&version, force)?;
 
     ui::success(&format!("Ruby {} installed successfully", version));
 
@@ -81,7 +117,7 @@ fn install(version: &str, force: bool) -> Result<()> {
     let installed = list_installed_versions()?;
     if installed.len() == 1 {
         let mut config = Config::load()?;
-        config.set_default_ruby(version);
+        config.set_default_ruby(&version);
         config.save()?;
         println!("  Set as default Ruby version");
     }
@@ -92,9 +128,18 @@ fn install(version: &str, force: bool) -> Result<()> {
 /// List installed or available Ruby versions
 fn list(show_available: bool) -> Result<()> {
     if show_available {
-        println!("Available Ruby versions:");
-        for version in AVAILABLE_VERSIONS {
-            println!("  {}", version);
+        println!("Available Ruby versions (from GitHub):");
+        match download::fetch_available_versions() {
+            Ok(versions) => {
+                for version in &versions {
+                    let series = download::version_series(version);
+                    println!("  {} ({})", version, series);
+                }
+            }
+            Err(e) => {
+                println!("  Failed to fetch: {}", e);
+                println!("  Check your network connection.");
+            }
         }
         return Ok(());
     }
@@ -103,17 +148,49 @@ fn list(show_available: bool) -> Result<()> {
 
     if installed.is_empty() {
         println!("No Ruby versions installed.");
-        println!("Run: railsup ruby install {}", DEFAULT_RUBY_VERSION);
+        // Try to get the latest available version
+        let default = match download::fetch_available_versions() {
+            Ok(versions) if !versions.is_empty() => versions[0].clone(),
+            _ => DEFAULT_RUBY_VERSION.to_string(),
+        };
+        println!("Run: railsup ruby install {}", default);
         return Ok(());
     }
 
     let config = Config::load()?;
     let default_version = config.default_ruby();
 
+    // Fetch available versions to check for updates
+    let available = download::fetch_available_versions().ok();
+
     println!("Installed Ruby versions:");
     for version in &installed {
-        if Some(version.as_str()) == default_version {
-            println!("  {} (default)", version);
+        let series = download::version_series(version);
+        let is_default = Some(version.as_str()) == default_version;
+
+        // Check if there's a newer version in this series
+        let update_hint = if let Some(ref avail) = available {
+            if let Some(latest) = download::find_latest_in_series(&series, avail) {
+                if latest != *version {
+                    Some(format!(" -> {} available", latest))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if is_default {
+            if let Some(hint) = update_hint {
+                println!("  {} (default){}", version, hint);
+            } else {
+                println!("  {} (default)", version);
+            }
+        } else if let Some(hint) = update_hint {
+            println!("  {}{}", version, hint);
         } else {
             println!("  {}", version);
         }

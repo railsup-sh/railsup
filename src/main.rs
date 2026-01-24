@@ -1,4 +1,8 @@
 mod cli;
+mod config;
+mod download;
+mod paths;
+mod platform;
 mod ruby;
 mod util;
 
@@ -19,5 +23,7 @@ fn run() -> Result<()> {
     match cli.command {
         Commands::New { name, force } => cli::new::run(&name, force),
         Commands::Dev { port } => cli::dev::run(port),
+        Commands::Ruby(cmd) => cli::ruby::run(cmd),
+        Commands::Which { command } => cli::which::run(&command),
     }
 }

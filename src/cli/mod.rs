@@ -27,7 +27,19 @@ pub enum Commands {
         #[arg(short, long, default_value = "3000")]
         port: u16,
     },
+
+    /// Manage Ruby versions
+    #[command(subcommand)]
+    Ruby(ruby::RubyCommands),
+
+    /// Show path to a command (ruby, gem, bundle, rails, etc.)
+    Which {
+        /// Command to find (ruby, gem, bundle, rails, rake, irb)
+        command: String,
+    },
 }
 
 pub mod dev;
 pub mod new;
+pub mod ruby;
+pub mod which;

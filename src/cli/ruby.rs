@@ -46,6 +46,9 @@ pub enum RubyCommands {
         /// Ruby version to remove
         version: String,
     },
+
+    /// Clear the download cache
+    ClearCache,
 }
 
 /// Handle Ruby subcommands
@@ -55,6 +58,7 @@ pub fn run(cmd: RubyCommands) -> Result<()> {
         RubyCommands::List { available } => list(available),
         RubyCommands::Default { version } => set_default(&version),
         RubyCommands::Remove { version } => remove(&version),
+        RubyCommands::ClearCache => clear_cache(),
     }
 }
 
@@ -163,6 +167,40 @@ fn remove(version: &str) -> Result<()> {
     }
 
     ui::success(&format!("Ruby {} removed", version));
+    Ok(())
+}
+
+/// Clear the download cache
+fn clear_cache() -> Result<()> {
+    let cache_dir = paths::cache_dir();
+
+    if !cache_dir.exists() {
+        println!("Cache is already empty.");
+        return Ok(());
+    }
+
+    let mut count = 0;
+    let mut total_size: u64 = 0;
+
+    for entry in fs::read_dir(&cache_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            if let Ok(metadata) = path.metadata() {
+                total_size += metadata.len();
+            }
+            fs::remove_file(&path)?;
+            count += 1;
+        }
+    }
+
+    if count == 0 {
+        println!("Cache is already empty.");
+    } else {
+        let size_mb = total_size as f64 / 1024.0 / 1024.0;
+        ui::success(&format!("Cleared {} cached file(s) ({:.1} MB)", count, size_mb));
+    }
+
     Ok(())
 }
 

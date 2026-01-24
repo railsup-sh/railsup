@@ -116,7 +116,6 @@ pub fn verify_checksum(file_path: &Path, version: &str) -> Result<bool> {
 
     let checksum_content = response.into_string()?;
     let expected = checksum_content
-        .trim()
         .split_whitespace()
         .next()
         .context("Invalid checksum file format")?

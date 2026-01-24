@@ -4,11 +4,11 @@
 pub fn detect_os() -> &'static str {
     #[cfg(target_os = "macos")]
     {
-        return "darwin";
+        "darwin"
     }
     #[cfg(target_os = "linux")]
     {
-        return "linux";
+        "linux"
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
@@ -20,11 +20,11 @@ pub fn detect_os() -> &'static str {
 pub fn detect_arch() -> &'static str {
     #[cfg(target_arch = "aarch64")]
     {
-        return "arm64";
+        "arm64"
     }
     #[cfg(target_arch = "x86_64")]
     {
-        return "x86_64";
+        "x86_64"
     }
     #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
     {

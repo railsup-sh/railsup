@@ -1,7 +1,6 @@
+// System Ruby detection (kept for potential fallback use)
+#[allow(dead_code)]
 mod detect;
 
-pub use detect::detect;
-
-// Re-export for potential future use
 #[allow(unused_imports)]
-pub use detect::{RubyError, RubyInfo};
+pub use detect::{detect, RubyError, RubyInfo};

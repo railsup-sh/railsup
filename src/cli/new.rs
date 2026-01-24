@@ -1,4 +1,6 @@
-use crate::ruby;
+use crate::cli::ruby::{list_installed_versions, DEFAULT_RUBY_VERSION};
+use crate::cli::which::resolve_ruby_version;
+use crate::{download, paths};
 use crate::util::{process, ui};
 use anyhow::{bail, Result};
 use std::path::Path;
@@ -9,8 +11,9 @@ pub fn run(name: &str, force: bool) -> Result<()> {
     // 1. Validate name - reject path separators for safety
     validate_app_name(name)?;
 
-    // 2. Detect Ruby
-    let _ruby_info = ruby::detect()?;
+    // 2. Ensure Ruby is available (auto-bootstrap if needed)
+    let ruby_version = ensure_ruby_available()?;
+    let ruby_bin = paths::ruby_bin_dir(&ruby_version);
 
     // 3. Check directory doesn't exist
     let path = Path::new(name);
@@ -22,14 +25,15 @@ pub fn run(name: &str, force: bool) -> Result<()> {
     }
 
     // 4. Ensure Rails gem is installed
-    ensure_rails_installed()?;
+    ensure_rails_installed(&ruby_bin)?;
 
-    // 5. Run rails new using ruby -S for reliable shim resolution
+    // 5. Run rails new
     ui::info(&format!("Creating Rails {} app...", RAILS_VERSION));
 
+    let ruby_path = ruby_bin.join("ruby");
     let rails_version_arg = format!("_{}_", RAILS_VERSION);
     let status = process::run_streaming(
-        "ruby",
+        ruby_path.to_str().unwrap(),
         &[
             "-S",
             "rails",
@@ -95,9 +99,46 @@ fn validate_app_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn ensure_rails_installed() -> Result<()> {
+/// Ensure Ruby is available, auto-bootstrapping if needed
+pub fn ensure_ruby_available() -> Result<String> {
+    // First, check if any railsup-managed Ruby is available
+    match resolve_ruby_version() {
+        Ok(version) => {
+            ui::info(&format!("Using Ruby {}", version));
+            return Ok(version);
+        }
+        Err(_) => {
+            // No Ruby installed, auto-bootstrap
+        }
+    }
+
+    // Check if there are any installed versions
+    let installed = list_installed_versions()?;
+    if !installed.is_empty() {
+        let version = installed.first().unwrap().clone();
+        ui::info(&format!("Using Ruby {}", version));
+        return Ok(version);
+    }
+
+    // No Ruby installed, auto-bootstrap
+    println!();
+    ui::info(&format!(
+        "No Ruby installed. Installing Ruby {}...",
+        DEFAULT_RUBY_VERSION
+    ));
+    download::download_ruby(DEFAULT_RUBY_VERSION, false)?;
+    ui::success(&format!("Ruby {} installed", DEFAULT_RUBY_VERSION));
+    println!();
+
+    Ok(DEFAULT_RUBY_VERSION.to_string())
+}
+
+fn ensure_rails_installed(ruby_bin: &Path) -> Result<()> {
+    let gem_path = ruby_bin.join("gem");
+    let gem_str = gem_path.to_str().unwrap();
+
     // Check if rails gem at correct version exists
-    let output = process::run_capture("gem", &["list", "rails", "-i", "-v", RAILS_VERSION])?;
+    let output = process::run_capture(gem_str, &["list", "rails", "-i", "-v", RAILS_VERSION])?;
 
     if output.trim() == "true" {
         return Ok(());
@@ -106,7 +147,7 @@ fn ensure_rails_installed() -> Result<()> {
     // Install Rails
     ui::info(&format!("Installing Rails {}...", RAILS_VERSION));
     let status = process::run_streaming(
-        "gem",
+        gem_str,
         &["install", "rails", "-v", RAILS_VERSION, "--no-document"],
         None,
     )?;
@@ -114,8 +155,9 @@ fn ensure_rails_installed() -> Result<()> {
     if !status.success() {
         bail!(
             "Failed to install Rails {}.\n  \
-             Try running manually: gem install rails -v {}",
+             Try running manually: {} install rails -v {}",
             RAILS_VERSION,
+            gem_str,
             RAILS_VERSION
         );
     }

@@ -1,4 +1,5 @@
-use crate::ruby;
+use crate::cli::new::ensure_ruby_available;
+use crate::paths;
 use crate::util::{process, ui};
 use anyhow::{bail, Result};
 use std::env;
@@ -11,16 +12,18 @@ pub fn run(port: u16) -> Result<()> {
         anyhow::anyhow!("Not a Rails directory. Create one with: railsup new myapp")
     })?;
 
-    // 2. Detect Ruby
-    let _ruby_info = ruby::detect()?;
+    // 2. Ensure Ruby is available (auto-bootstrap if needed)
+    let ruby_version = ensure_ruby_available()?;
+    let ruby_bin = paths::ruby_bin_dir(&ruby_version);
+    let ruby_path = ruby_bin.join("ruby");
 
     // 3. Print startup message
     ui::info(&format!("Starting Rails on http://localhost:{}", port));
 
-    // 4. Run rails server using current_dir (not env::set_current_dir)
+    // 4. Run rails server
     let port_str = port.to_string();
     let status = process::run_streaming(
-        "ruby",
+        ruby_path.to_str().unwrap(),
         &["-S", "bundle", "exec", "rails", "server", "-p", &port_str],
         Some(&rails_root),
     )?;

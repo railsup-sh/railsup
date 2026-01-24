@@ -72,18 +72,18 @@ Download from [GitHub Releases](https://github.com/railsup-sh/railsup/releases):
 
 ```bash
 # macOS ARM64
-curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.2.0/railsup-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.2.1/railsup-aarch64-apple-darwin.tar.gz
 tar xzf railsup-aarch64-apple-darwin.tar.gz
 sudo mv railsup /usr/local/bin/
 
 # macOS x86_64
-curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.2.0/railsup-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.2.1/railsup-x86_64-apple-darwin.tar.gz
 
 # Linux x86_64
-curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.2.0/railsup-x86_64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.2.1/railsup-x86_64-unknown-linux-gnu.tar.gz
 
 # Linux ARM64
-curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.2.0/railsup-aarch64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.2.1/railsup-aarch64-unknown-linux-gnu.tar.gz
 ```
 
 ## Directory Structure
@@ -132,7 +132,7 @@ railsup new myapp --force
 
 ## Status
 
-v0.2.0 — Ruby version management. Four platforms.
+v0.2.1 — Ruby version management. Four platforms.
 
 ## License
 

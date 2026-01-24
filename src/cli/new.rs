@@ -5,7 +5,27 @@ use crate::util::{process, ui};
 use anyhow::{bail, Result};
 use std::path::Path;
 
-const RAILS_VERSION: &str = "8.1.2";
+/// Fallback Rails version if we can't fetch from rubygems.org
+const FALLBACK_RAILS_VERSION: &str = "8.1.2";
+
+/// Rubygems API URL for Rails gem info
+const RUBYGEMS_RAILS_URL: &str = "https://rubygems.org/api/v1/gems/rails.json";
+
+/// Fetch the latest Rails version from rubygems.org
+fn fetch_latest_rails_version() -> Option<String> {
+    let response = ureq::get(RUBYGEMS_RAILS_URL)
+        .timeout(std::time::Duration::from_secs(5))
+        .call()
+        .ok()?;
+
+    let json: serde_json::Value = response.into_json().ok()?;
+    json.get("version")?.as_str().map(|s| s.to_string())
+}
+
+/// Get the Rails version to use (fetched or fallback)
+fn get_rails_version() -> String {
+    fetch_latest_rails_version().unwrap_or_else(|| FALLBACK_RAILS_VERSION.to_string())
+}
 
 pub fn run(name: &str, force: bool) -> Result<()> {
     // 1. Validate name - reject path separators for safety
@@ -24,14 +44,15 @@ pub fn run(name: &str, force: bool) -> Result<()> {
         );
     }
 
-    // 4. Ensure Rails gem is installed
-    ensure_rails_installed(&ruby_bin)?;
+    // 4. Get Rails version and ensure it's installed
+    let rails_version = get_rails_version();
+    ensure_rails_installed(&ruby_bin, &rails_version)?;
 
     // 5. Run rails new
-    ui::info(&format!("Creating Rails {} app...", RAILS_VERSION));
+    ui::info(&format!("Creating Rails {} app...", rails_version));
 
     let ruby_path = ruby_bin.join("ruby");
-    let rails_version_arg = format!("_{}_", RAILS_VERSION);
+    let rails_version_arg = format!("_{}_", rails_version);
     let status = process::run_streaming(
         ruby_path.to_str().unwrap(),
         &[
@@ -54,7 +75,7 @@ pub fn run(name: &str, force: bool) -> Result<()> {
         bail!(
             "Failed to create Rails app. Try running manually:\n  \
              gem install rails -v {} && rails new {}",
-            RAILS_VERSION,
+            rails_version,
             name
         );
     }
@@ -133,22 +154,22 @@ pub fn ensure_ruby_available() -> Result<String> {
     Ok(DEFAULT_RUBY_VERSION.to_string())
 }
 
-fn ensure_rails_installed(ruby_bin: &Path) -> Result<()> {
+fn ensure_rails_installed(ruby_bin: &Path, rails_version: &str) -> Result<()> {
     let gem_path = ruby_bin.join("gem");
     let gem_str = gem_path.to_str().unwrap();
 
     // Check if rails gem at correct version exists
-    let output = process::run_capture(gem_str, &["list", "rails", "-i", "-v", RAILS_VERSION])?;
+    let output = process::run_capture(gem_str, &["list", "rails", "-i", "-v", rails_version])?;
 
     if output.trim() == "true" {
         return Ok(());
     }
 
     // Install Rails
-    ui::info(&format!("Installing Rails {}...", RAILS_VERSION));
+    ui::info(&format!("Installing Rails {}...", rails_version));
     let status = process::run_streaming(
         gem_str,
-        &["install", "rails", "-v", RAILS_VERSION, "--no-document"],
+        &["install", "rails", "-v", rails_version, "--no-document"],
         None,
     )?;
 
@@ -156,9 +177,9 @@ fn ensure_rails_installed(ruby_bin: &Path) -> Result<()> {
         bail!(
             "Failed to install Rails {}.\n  \
              Try running manually: {} install rails -v {}",
-            RAILS_VERSION,
+            rails_version,
             gem_str,
-            RAILS_VERSION
+            rails_version
         );
     }
 

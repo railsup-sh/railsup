@@ -51,14 +51,13 @@ pub fn run(name: &str, force: bool) -> Result<()> {
     // 5. Run rails new
     ui::info(&format!("Creating Rails {} app...", rails_version));
 
-    let ruby_path = ruby_bin.join("ruby");
+    // Use rails directly from our Ruby's bin to avoid PATH conflicts with rbenv/mise
+    let rails_path = ruby_bin.join("rails");
     let rails_version_arg = format!("_{}_", rails_version);
     let status = process::run_streaming(
-        ruby_path.to_str().unwrap(),
+        rails_path.to_str().unwrap(),
         &[
-            "-S",
-            "rails",
-            &rails_version_arg,
+            rails_version_arg.as_str(),
             "new",
             name,
             "--database=sqlite3",

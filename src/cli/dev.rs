@@ -15,16 +15,17 @@ pub fn run(port: u16) -> Result<()> {
     // 2. Ensure Ruby is available (auto-bootstrap if needed)
     let ruby_version = ensure_ruby_available()?;
     let ruby_bin = paths::ruby_bin_dir(&ruby_version);
-    let ruby_path = ruby_bin.join("ruby");
 
     // 3. Print startup message
     ui::info(&format!("Starting Rails on http://localhost:{}", port));
 
     // 4. Run rails server
+    // Use bundle directly from our Ruby's bin to avoid PATH conflicts with rbenv/mise
+    let bundle_path = ruby_bin.join("bundle");
     let port_str = port.to_string();
     let status = process::run_streaming(
-        ruby_path.to_str().unwrap(),
-        &["-S", "bundle", "exec", "rails", "server", "-p", &port_str],
+        bundle_path.to_str().unwrap(),
+        &["exec", "rails", "server", "-p", &port_str],
         Some(&rails_root),
     )?;
 

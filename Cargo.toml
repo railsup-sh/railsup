@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 description = "The better way to install and run Ruby on Rails"
 license = "MIT"
-repository = "https://github.com/thechangelog/railsup"
+repository = "https://github.com/railsup-sh/railsup"
 homepage = "https://railsup.sh"
 
 [dependencies]

@@ -116,6 +116,11 @@ fn validate_app_name(name: &str) -> Result<()> {
         bail!("App name cannot start with a dash.");
     }
 
+    // Reject hidden directories (starting with .)
+    if name.starts_with('.') {
+        bail!("App name cannot start with a dot.");
+    }
+
     Ok(())
 }
 
@@ -233,5 +238,11 @@ mod tests {
     fn validate_accepts_dashes_in_middle() {
         assert!(validate_app_name("my-cool-app").is_ok());
         assert!(validate_app_name("app-v2").is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_hidden_directories() {
+        assert!(validate_app_name(".hidden").is_err());
+        assert!(validate_app_name(".myapp").is_err());
     }
 }

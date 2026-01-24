@@ -1,7 +1,7 @@
 use crate::cli::ruby::{list_installed_versions, DEFAULT_RUBY_VERSION};
 use crate::cli::which::resolve_ruby_version;
-use crate::{download, paths};
 use crate::util::{process, ui};
+use crate::{download, paths};
 use anyhow::{bail, Result};
 use std::path::Path;
 

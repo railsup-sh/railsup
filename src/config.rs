@@ -48,8 +48,7 @@ impl Config {
             fs::create_dir_all(parent)?;
         }
 
-        let content = toml::to_string_pretty(self)
-            .context("Failed to serialize config")?;
+        let content = toml::to_string_pretty(self).context("Failed to serialize config")?;
 
         fs::write(&config_path, content)
             .with_context(|| format!("Failed to write config file: {}", config_path.display()))
@@ -86,8 +85,9 @@ impl ProjectConfig {
         let content = fs::read_to_string(&config_path)
             .with_context(|| format!("Failed to read project config: {}", config_path.display()))?;
 
-        let config: ProjectConfig = toml::from_str(&content)
-            .with_context(|| format!("Failed to parse project config: {}", config_path.display()))?;
+        let config: ProjectConfig = toml::from_str(&content).with_context(|| {
+            format!("Failed to parse project config: {}", config_path.display())
+        })?;
 
         Ok(Some(config))
     }

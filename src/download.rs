@@ -79,8 +79,8 @@ pub fn download_with_progress(url: &str, dest: &Path) -> Result<()> {
     };
 
     // Create destination file
-    let mut file = File::create(dest)
-        .with_context(|| format!("Failed to create file: {}", dest.display()))?;
+    let mut file =
+        File::create(dest).with_context(|| format!("Failed to create file: {}", dest.display()))?;
 
     // Read and write with progress updates
     let mut reader = response.into_reader();
@@ -185,7 +185,8 @@ pub fn extract_tarball(tarball: &Path, dest_dir: &Path) -> Result<()> {
     fs::create_dir_all(dest_dir)?;
 
     // Extract to destination
-    archive.unpack(dest_dir)
+    archive
+        .unpack(dest_dir)
         .with_context(|| format!("Failed to extract tarball to: {}", dest_dir.display()))?;
 
     Ok(())
@@ -203,8 +204,8 @@ pub fn fetch_available_versions() -> Result<Vec<String>> {
     }
 
     let body = response.into_string()?;
-    let releases: Vec<serde_json::Value> = serde_json::from_str(&body)
-        .context("Failed to parse GitHub releases response")?;
+    let releases: Vec<serde_json::Value> =
+        serde_json::from_str(&body).context("Failed to parse GitHub releases response")?;
 
     let mut versions: Vec<String> = releases
         .iter()
@@ -254,8 +255,7 @@ pub fn find_latest_in_series(series: &str, available: &[String]) -> Option<Strin
 /// Check if a version is available
 pub fn is_version_available(version: &str) -> Result<bool> {
     let url = ruby_download_url(version);
-    let response = ureq::head(&url)
-        .call();
+    let response = ureq::head(&url).call();
 
     match response {
         Ok(r) => Ok(r.status() == 200),
@@ -270,7 +270,11 @@ pub fn download_ruby(version: &str, force: bool) -> Result<()> {
 
     // Check if already installed
     if dest.exists() && !force {
-        println!("Ruby {} is already installed at {}", version, dest.display());
+        println!(
+            "Ruby {} is already installed at {}",
+            version,
+            dest.display()
+        );
         return Ok(());
     }
 

@@ -275,7 +275,10 @@ fn clear_cache() -> Result<()> {
         println!("Cache is already empty.");
     } else {
         let size_mb = total_size as f64 / 1024.0 / 1024.0;
-        ui::success(&format!("Cleared {} cached file(s) ({:.1} MB)", count, size_mb));
+        ui::success(&format!(
+            "Cleared {} cached file(s) ({:.1} MB)",
+            count, size_mb
+        ));
     }
 
     Ok(())

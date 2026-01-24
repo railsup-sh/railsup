@@ -2,8 +2,8 @@
 //!
 //! railsup which <command>
 
-use crate::{config::Config, paths};
 use crate::cli::ruby::list_installed_versions;
+use crate::{config::Config, paths};
 use anyhow::{bail, Result};
 use std::env;
 use std::path::Path;
@@ -42,9 +42,7 @@ pub fn resolve_ruby_version() -> Result<String> {
     }
 
     // 4. No Ruby installed
-    bail!(
-        "No Ruby version installed.\nRun: railsup ruby install 4.0.1"
-    )
+    bail!("No Ruby version installed.\nRun: railsup ruby install 4.0.1")
 }
 
 /// Search up the directory tree for a railsup.toml with ruby version

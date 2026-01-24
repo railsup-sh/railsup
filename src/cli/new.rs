@@ -172,11 +172,14 @@ fn ensure_rails_installed(ruby_bin: &Path, rails_version: &str) -> Result<()> {
     }
 
     // Install Rails
+    // Use run_streaming_with_env to ensure any subprocesses (native extension compilation)
+    // also use our Ruby, not system Ruby
     ui::info(&format!("Installing Rails {}...", rails_version));
-    let status = process::run_streaming(
+    let status = process::run_streaming_with_env(
         gem_str,
         &["install", "rails", "-v", rails_version, "--no-document"],
         None,
+        Some(ruby_bin),
     )?;
 
     if !status.success() {

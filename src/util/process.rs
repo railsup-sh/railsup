@@ -5,6 +5,7 @@ use std::process::{Command, ExitStatus, Stdio};
 
 /// Run a command with output streamed to the terminal.
 /// Uses current_dir to set working directory (doesn't change process cwd).
+#[allow(dead_code)]
 pub fn run_streaming<S: AsRef<OsStr>>(
     program: &str,
     args: &[S],

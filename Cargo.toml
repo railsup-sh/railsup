@@ -1,6 +1,6 @@
 [package]
 name = "railsup"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 description = "The better way to install and run Ruby on Rails"
 license = "MIT"

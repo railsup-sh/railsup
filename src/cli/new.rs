@@ -51,10 +51,11 @@ pub fn run(name: &str, force: bool) -> Result<()> {
     // 5. Run rails new
     ui::info(&format!("Creating Rails {} app...", rails_version));
 
-    // Use rails directly from our Ruby's bin to avoid PATH conflicts with rbenv/mise
+    // Use rails directly from our Ruby's bin and prepend to PATH
+    // so that subprocesses (gem install, bundle exec, etc.) also use our Ruby
     let rails_path = ruby_bin.join("rails");
     let rails_version_arg = format!("_{}_", rails_version);
-    let status = process::run_streaming(
+    let status = process::run_streaming_with_env(
         rails_path.to_str().unwrap(),
         &[
             rails_version_arg.as_str(),
@@ -68,6 +69,7 @@ pub fn run(name: &str, force: bool) -> Result<()> {
             "--skip-action-text",
         ],
         None,
+        Some(&ruby_bin),
     )?;
 
     if !status.success() {

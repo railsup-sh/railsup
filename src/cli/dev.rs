@@ -20,13 +20,15 @@ pub fn run(port: u16) -> Result<()> {
     ui::info(&format!("Starting Rails on http://localhost:{}", port));
 
     // 4. Run rails server
-    // Use bundle directly from our Ruby's bin to avoid PATH conflicts with rbenv/mise
+    // Use bundle directly from our Ruby's bin and prepend to PATH
+    // so that subprocesses also use our Ruby
     let bundle_path = ruby_bin.join("bundle");
     let port_str = port.to_string();
-    let status = process::run_streaming(
+    let status = process::run_streaming_with_env(
         bundle_path.to_str().unwrap(),
         &["exec", "rails", "server", "-p", &port_str],
         Some(&rails_root),
+        Some(&ruby_bin),
     )?;
 
     if !status.success() {

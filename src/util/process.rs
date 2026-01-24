@@ -10,6 +10,17 @@ pub fn run_streaming<S: AsRef<OsStr>>(
     args: &[S],
     working_dir: Option<&Path>,
 ) -> Result<ExitStatus> {
+    run_streaming_with_env(program, args, working_dir, None)
+}
+
+/// Run a command with output streamed to the terminal, with custom PATH prepended.
+/// This ensures subprocesses also use the correct Ruby.
+pub fn run_streaming_with_env<S: AsRef<OsStr>>(
+    program: &str,
+    args: &[S],
+    working_dir: Option<&Path>,
+    prepend_path: Option<&Path>,
+) -> Result<ExitStatus> {
     let mut cmd = Command::new(program);
     cmd.args(args)
         .stdin(Stdio::inherit())
@@ -18,6 +29,13 @@ pub fn run_streaming<S: AsRef<OsStr>>(
 
     if let Some(dir) = working_dir {
         cmd.current_dir(dir);
+    }
+
+    // Prepend to PATH so subprocesses find the correct Ruby
+    if let Some(bin_dir) = prepend_path {
+        let current_path = std::env::var("PATH").unwrap_or_default();
+        let new_path = format!("{}:{}", bin_dir.display(), current_path);
+        cmd.env("PATH", new_path);
     }
 
     let status = cmd

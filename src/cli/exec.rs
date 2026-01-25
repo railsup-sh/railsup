@@ -50,9 +50,7 @@ pub fn run(ruby_version: Option<String>, command: Vec<String>) -> Result<()> {
     std::env::remove_var("RUBYOPT");
     std::env::remove_var("RUBYLIB");
 
-    let err = exec::Command::new(program)
-        .args(args)
-        .exec();
+    let err = exec::Command::new(program).args(args).exec();
 
     // exec() only returns on error
     bail!("Failed to execute '{}': {}", program, err)

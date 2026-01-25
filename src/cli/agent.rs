@@ -45,6 +45,12 @@ struct ProjectContext {
     path: String,
 }
 
+/// Detect if shell integration is active (railsup Ruby is in PATH)
+fn detect_shell_integration() -> bool {
+    let path = env::var("PATH").unwrap_or_default();
+    path.contains(".railsup/ruby/")
+}
+
 /// Find project Ruby version from config files
 fn find_project_ruby(dir: &Path) -> Option<(String, String)> {
     // 1. railsup.toml
@@ -93,6 +99,9 @@ fn build_context() -> String {
         .ok()
         .and_then(|c| c.default_ruby().map(|s| s.to_string()));
 
+    // Detect shell integration
+    let shell_integrated = detect_shell_integration();
+
     // Detect project context
     let project_section = if let Some(project) = detect_project_context() {
         let app = project.app_name.unwrap_or_else(|| "unknown".to_string());
@@ -116,10 +125,77 @@ fn build_context() -> String {
         String::new()
     };
 
+    // Different content based on shell integration status
+    let (tldr, shell_status, commands_section, agent_guidance) = if shell_integrated {
+        (
+            "**TL;DR: Just run Ruby/Rails commands normally. Shell integration is active.**",
+            "- Shell integration: **Active** (railsup Ruby is in PATH)",
+            r#"### Run commands directly
+```bash
+bin/rails generate scaffold Post body:text
+bundle install
+ruby script.rb
+```
+
+### Create a new Rails app
+```bash
+railsup new myapp
+cd myapp
+railsup dev
+```"#,
+            r#"## For AI Agents
+
+Shell integration is **active**. Run Ruby/Rails commands normally:
+
+1. **Run commands directly** - `bin/rails`, `bundle`, `ruby` all work without prefixes
+2. **Use `railsup new`** for creating new Rails applications
+3. **Use `railsup dev`** to start the development server
+
+No need for `railsup exec` - the user's shell already has railsup's Ruby in PATH."#,
+        )
+    } else {
+        (
+            "**TL;DR: Prefix Ruby/Rails commands with `railsup exec`**",
+            "- Shell integration: **Not active** (recommend setting up for easier workflow)",
+            r#"### Run commands with railsup Ruby (bypasses rbenv/asdf)
+```bash
+railsup exec bin/rails generate scaffold Post body:text
+railsup exec bundle install
+railsup exec ruby script.rb
+```
+
+### Create a new Rails app
+```bash
+railsup new myapp
+cd myapp
+railsup dev
+```"#,
+            r#"## For AI Agents
+
+Shell integration is **not active**. Use `railsup exec` prefix:
+
+1. **Prefer `railsup exec`** for running Ruby/Rails commands to avoid version conflicts
+2. **Check installed versions** with `railsup ruby list` before suggesting installs
+3. **Use `railsup new`** for creating new Rails applications
+4. **Use `railsup dev`** to start the development server
+
+### Help the user enable shell integration
+
+For an easier workflow, suggest adding to their shell profile:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+eval "$(railsup shell-init)"
+```
+
+Then they can run `bin/rails`, `bundle`, etc. without the `railsup exec` prefix."#,
+        )
+    };
+
     format!(
         r#"# Railsup - AI Agent Context
 
-**TL;DR: Prefix Ruby/Rails commands with `railsup exec`**
+{tldr}
 
 ## What is Railsup?
 
@@ -135,24 +211,13 @@ Documentation: https://railsup.sh
 - Railsup version: {version}
 - Installed Ruby versions: {installed}
 - Default Ruby: {default}
+{shell_status}
 - Ruby installations: ~/.railsup/ruby/
 - Gem installations: ~/.railsup/gems/
 {project_section}
 ## Key Commands
 
-### Create a new Rails app
-```bash
-railsup new myapp
-cd myapp
-railsup dev
-```
-
-### Run commands with railsup Ruby (bypasses rbenv/asdf)
-```bash
-railsup exec bin/rails generate scaffold Post body:text
-railsup exec bundle install
-railsup exec ruby script.rb
-```
+{commands_section}
 
 ### Manage Ruby versions
 ```bash
@@ -169,25 +234,6 @@ railsup dev                     # Start Rails development server
 railsup --help                  # Full help
 ```
 
-## Important: Version Manager Conflicts
-
-If the user has rbenv, asdf, or rvm installed, those tools may intercept Ruby
-commands via PATH shims. When you see errors like:
-
-```
-rbenv: version `ruby-4.0.1' is not installed
-```
-
-Use `railsup exec` to bypass:
-
-```bash
-# Instead of:
-bin/rails server
-
-# Use:
-railsup exec bin/rails server
-```
-
 ## Directory Structure
 
 ```
@@ -198,18 +244,9 @@ railsup exec bin/rails server
 └── config.toml     # Global config (default Ruby version)
 ```
 
-## For AI Agents
-
-When helping users with Rails development on a system with railsup:
-
-1. **Prefer `railsup exec`** for running Ruby/Rails commands to avoid version conflicts
-2. **Check installed versions** with `railsup ruby list` before suggesting installs
-3. **Use `railsup new`** for creating new Rails applications
-4. **Use `railsup dev`** to start the development server
-
-Railsup handles Ruby version management automatically. You don't need to worry
-about rbenv, asdf, rvm, or system Ruby - just use railsup commands.
+{agent_guidance}
 "#,
+        tldr = tldr,
         version = version,
         installed = if installed.is_empty() {
             "none".to_string()
@@ -217,6 +254,9 @@ about rbenv, asdf, rvm, or system Ruby - just use railsup commands.
             installed.join(", ")
         },
         default = default_ruby.unwrap_or_else(|| "not set".to_string()),
+        shell_status = shell_status,
         project_section = project_section,
+        commands_section = commands_section,
+        agent_guidance = agent_guidance,
     )
 }

@@ -3,6 +3,11 @@ name: Update README Version
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.3.3)'
+        required: true
 
 jobs:
   update:
@@ -15,9 +20,14 @@ jobs:
       - name: Get release version
         id: version
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
+          # Use input version for manual trigger, or release tag for release event
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.event.release.tag_name }}"
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Released version: $VERSION"
+          echo "Updating to version: $VERSION"
 
       - name: Update README
         run: |

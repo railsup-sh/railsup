@@ -119,6 +119,11 @@ fn detect_shell_integration() -> ShellIntegrationStatus {
         if let Some(status) = check_file_for_shell_init(&path) {
             return status;
         }
+
+        // Check sourced files within the main config
+        if let Some(status) = check_sourced_files(&path, &home) {
+            return status;
+        }
     }
 
     ShellIntegrationStatus {
@@ -126,6 +131,81 @@ fn detect_shell_integration() -> ShellIntegrationStatus {
         shell_file: None,
         line_number: None,
         placement: ShellInitPlacement::NotFound,
+    }
+}
+
+/// Check files that are sourced from a shell config
+fn check_sourced_files(
+    config_path: &PathBuf,
+    home: &std::path::Path,
+) -> Option<ShellIntegrationStatus> {
+    let content = fs::read_to_string(config_path).ok()?;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        // Skip comments
+        if trimmed.starts_with('#') {
+            continue;
+        }
+
+        // Look for source commands: source file, . file, or [[ -f file ]] && source file
+        let sourced_file = extract_sourced_file(trimmed, home);
+        if let Some(path) = sourced_file {
+            if let Some(status) = check_file_for_shell_init(&path) {
+                return Some(status);
+            }
+        }
+    }
+
+    None
+}
+
+/// Extract the file path from a source command
+fn extract_sourced_file(line: &str, home: &std::path::Path) -> Option<PathBuf> {
+    // Match patterns like:
+    // source ~/.dotfiles/file
+    // source "$HOME/.dotfiles/file"
+    // . ~/.dotfiles/file
+    // [[ -f ~/.file ]] && source ~/.file
+
+    let patterns = ["source ", ". ", "&& source ", "&& . "];
+
+    for pattern in patterns {
+        if let Some(idx) = line.find(pattern) {
+            let after = &line[idx + pattern.len()..];
+            let path_str = after
+                .split_whitespace()
+                .next()?
+                .trim_matches('"')
+                .trim_matches('\'');
+
+            return expand_path(path_str, home);
+        }
+    }
+
+    None
+}
+
+/// Expand ~ and $HOME in paths
+fn expand_path(path: &str, home: &std::path::Path) -> Option<PathBuf> {
+    let expanded = if let Some(rest) = path.strip_prefix("~/") {
+        home.join(rest)
+    } else if let Some(rest) = path.strip_prefix("$HOME/") {
+        home.join(rest)
+    } else if let Some(rest) = path.strip_prefix("${HOME}/") {
+        home.join(rest)
+    } else if path.starts_with('/') {
+        PathBuf::from(path)
+    } else {
+        // Relative path - skip
+        return None;
+    };
+
+    if expanded.exists() {
+        Some(expanded)
+    } else {
+        None
     }
 }
 

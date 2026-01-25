@@ -10,8 +10,7 @@ A single Rust binary that simplifies Ruby on Rails development. RailsUp manages 
 
 ```bash
 # Install railsup via bkt
-curl -fsSL https://bkt.sh/adamstac/railsup/install.sh | sh
-bkt install adamstac/railsup
+curl -fsSL https://api.bkt.sh/adamstac/railsup/install.sh | sh
 
 # Create and run a new Rails app
 railsup new myapp

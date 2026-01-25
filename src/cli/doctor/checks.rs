@@ -346,7 +346,7 @@ fn analyze_path(ruby_status: &RubyStatus) -> PathAnalysis {
     // Check if ruby is correct
     let ruby_correct = which_ruby
         .as_ref()
-        .map_or(false, |p| p.to_string_lossy().contains(".railsup/ruby/"));
+        .is_some_and(|p| p.to_string_lossy().contains(".railsup/ruby/"));
 
     // Check if gem_bin is in PATH
     let gem_bin_in_path = entries

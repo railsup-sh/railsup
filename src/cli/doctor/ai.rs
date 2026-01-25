@@ -154,7 +154,7 @@ impl WordWrapper {
             match ch {
                 '\n' => {
                     self.flush_word();
-                    print!("\n");
+                    println!();
                     self.col = 0;
                 }
                 ' ' => {
@@ -180,7 +180,7 @@ impl WordWrapper {
 
         // Wrap if needed
         if self.col > 0 && self.col + word_len > self.max_width {
-            print!("\n");
+            println!();
             self.col = 0;
         }
 

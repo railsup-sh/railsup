@@ -37,9 +37,21 @@ pub enum Commands {
         /// Command to find (ruby, gem, bundle, rails, rake, irb)
         command: String,
     },
+
+    /// Run a command with railsup Ruby environment
+    Exec {
+        /// Ruby version to use (default: auto-detect)
+        #[arg(long)]
+        ruby: Option<String>,
+
+        /// Command and arguments to run
+        #[arg(trailing_var_arg = true, required = true)]
+        command: Vec<String>,
+    },
 }
 
 pub mod dev;
+pub mod exec;
 pub mod new;
 pub mod ruby;
 pub mod which;

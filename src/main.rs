@@ -25,5 +25,6 @@ fn run() -> Result<()> {
         Commands::Dev { port } => cli::dev::run(port),
         Commands::Ruby(cmd) => cli::ruby::run(cmd),
         Commands::Which { command } => cli::which::run(&command),
+        Commands::Exec { ruby, command } => cli::exec::run(ruby, command),
     }
 }

@@ -31,6 +31,7 @@ railsup ruby list [--available] List installed/available Ruby versions
 railsup ruby default <version>  Set default Ruby version
 railsup ruby remove <version>   Remove a Ruby version
 railsup which <command>         Show path to command (ruby, gem, bundle)
+railsup exec <command>          Run command with railsup Ruby environment
 railsup --help                  Show help
 railsup --version               Show version
 ```
@@ -129,6 +130,22 @@ Use `--force` to overwrite:
 ```bash
 railsup new myapp --force
 ```
+
+### rbenv/asdf conflict
+
+If you see errors like `rbenv: version 'ruby-4.0.1' is not installed`, your system has another Ruby version manager that's intercepting commands.
+
+Use `railsup exec` to bypass:
+
+```bash
+# Instead of:
+bin/rails generate scaffold Post body:text
+
+# Use:
+railsup exec bin/rails generate scaffold Post body:text
+```
+
+The `exec` command runs any command with railsup's Ruby environment, bypassing rbenv/asdf/rvm shims.
 
 ## Status
 

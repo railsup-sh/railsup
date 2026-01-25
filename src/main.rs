@@ -20,11 +20,25 @@ fn main() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
 
+    // Handle --agent flag
+    if cli.agent {
+        cli::agent::run();
+        return Ok(());
+    }
+
+    // Handle subcommands
     match cli.command {
-        Commands::New { name, force } => cli::new::run(&name, force),
-        Commands::Dev { port } => cli::dev::run(port),
-        Commands::Ruby(cmd) => cli::ruby::run(cmd),
-        Commands::Which { command } => cli::which::run(&command),
-        Commands::Exec { ruby, command } => cli::exec::run(ruby, command),
+        Some(Commands::New { name, force }) => cli::new::run(&name, force),
+        Some(Commands::Dev { port }) => cli::dev::run(port),
+        Some(Commands::Ruby(cmd)) => cli::ruby::run(cmd),
+        Some(Commands::Which { command }) => cli::which::run(&command),
+        Some(Commands::Exec { ruby, command }) => cli::exec::run(ruby, command),
+        None => {
+            // No command provided, show help
+            use clap::CommandFactory;
+            Cli::command().print_help()?;
+            println!();
+            Ok(())
+        }
     }
 }

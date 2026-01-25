@@ -5,8 +5,12 @@ use clap::{Parser, Subcommand};
 #[command(about = "The better way to install and run Ruby on Rails")]
 #[command(version)]
 pub struct Cli {
+    /// Output context for AI agents (what railsup is, how to use it)
+    #[arg(long)]
+    pub agent: bool,
+
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -50,6 +54,7 @@ pub enum Commands {
     },
 }
 
+pub mod agent;
 pub mod dev;
 pub mod exec;
 pub mod new;

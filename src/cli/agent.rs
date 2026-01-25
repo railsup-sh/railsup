@@ -19,6 +19,8 @@ fn build_context() -> String {
     format!(
         r#"# Railsup - AI Agent Context
 
+**TL;DR: Prefix Ruby/Rails commands with `railsup exec`**
+
 ## What is Railsup?
 
 Railsup is THE definitive way to install and run Ruby on Rails. It's a single

@@ -59,10 +59,26 @@ pub enum Commands {
         #[arg(long)]
         shell: Option<String>,
     },
+
+    /// Diagnose environment and troubleshoot issues
+    Doctor {
+        /// Output as JSON (suppresses AI analysis)
+        #[arg(long)]
+        json: bool,
+
+        /// Attempt automatic fixes with confirmation
+        #[arg(long)]
+        fix: bool,
+
+        /// Show all checks, not just issues
+        #[arg(long, short)]
+        verbose: bool,
+    },
 }
 
 pub mod agent;
 pub mod dev;
+pub mod doctor;
 pub mod exec;
 pub mod new;
 pub mod ruby;

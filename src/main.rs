@@ -34,6 +34,7 @@ fn run() -> Result<()> {
         Some(Commands::Which { command }) => cli::which::run(&command),
         Some(Commands::Exec { ruby, command }) => cli::exec::run(ruby, command),
         Some(Commands::ShellInit { shell }) => cli::shell_init::run(shell),
+        Some(Commands::Doctor { json, fix, verbose }) => cli::doctor::run(json, fix, verbose),
         None => {
             // No command provided, show help
             use clap::CommandFactory;

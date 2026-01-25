@@ -145,13 +145,20 @@ railsup dev
 ```"#,
             r#"## For AI Agents
 
-Shell integration is **active**. Run Ruby/Rails commands normally:
+**Important:** You likely run each command in a fresh shell where environment
+variables don't persist. Even though the user has shell integration configured,
+**always use `railsup exec`** for reliability:
 
-1. **Run commands directly** - `bin/rails`, `bundle`, `ruby` all work without prefixes
-2. **Use `railsup new`** for creating new Rails applications
-3. **Use `railsup dev`** to start the development server
+```bash
+railsup exec bin/rails generate scaffold Post body:text
+railsup exec bundle install
+railsup exec bin/dev
+```
 
-No need for `railsup exec` - the user's shell already has railsup's Ruby in PATH."#,
+This is not a workaround - it's the correct approach for automation and AI agents.
+
+Shell integration (`eval "$(railsup shell-init)"`) is for humans in interactive
+terminals where the environment persists across commands."#,
         )
     } else {
         (
@@ -172,23 +179,28 @@ railsup dev
 ```"#,
             r#"## For AI Agents
 
-Shell integration is **not active**. Use `railsup exec` prefix:
+**Always use `railsup exec`** for Ruby/Rails commands:
 
-1. **Prefer `railsup exec`** for running Ruby/Rails commands to avoid version conflicts
-2. **Check installed versions** with `railsup ruby list` before suggesting installs
-3. **Use `railsup new`** for creating new Rails applications
-4. **Use `railsup dev`** to start the development server
+```bash
+railsup exec bin/rails generate scaffold Post body:text
+railsup exec bundle install
+railsup exec bin/dev
+```
 
-### Help the user enable shell integration
+This is not a workaround - it's the correct approach for automation and AI agents.
+Each command runs in a fresh shell, so `railsup exec` ensures the right Ruby is used.
 
-For an easier workflow, suggest adding to their shell profile:
+### For the human user
+
+Suggest they enable shell integration for their interactive terminal:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
 eval "$(railsup shell-init)"
 ```
 
-Then they can run `bin/rails`, `bundle`, etc. without the `railsup exec` prefix."#,
+Then *they* can run `bin/rails`, `bundle`, etc. directly. But you (the agent)
+should still use `railsup exec` for reliability."#,
         )
     };
 

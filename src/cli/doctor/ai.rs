@@ -4,7 +4,7 @@
 
 use super::report::DiagnosticReport;
 use anyhow::Result;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{Read, Write};
 use std::process::{Command, Stdio};
 
 /// Check if Claude Code CLI is available
@@ -21,52 +21,25 @@ pub fn stream_analysis(report: &DiagnosticReport) -> Result<()> {
     println!();
     println!("{}", "─".repeat(50));
     println!();
-    println!("Analyzing with Claude...");
+    println!("Analyzing with Claude (Haiku)...");
     println!();
 
     let prompt = build_prompt(report)?;
 
     let mut child = Command::new("claude")
-        .args([
-            "--print",
-            "--model",
-            "haiku",
-            "--output-format",
-            "stream-json",
-            "--verbose",
-            &prompt,
-        ])
+        .args(["--print", "--model", "haiku", &prompt])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()?;
 
-    let stdout = child.stdout.take().expect("stdout");
-    let reader = BufReader::new(stdout);
-
+    let mut stdout = child.stdout.take().expect("stdout");
     let mut wrapper = WordWrapper::new(76);
 
-    for line in reader.lines() {
-        let line = match line {
-            Ok(l) => l,
-            Err(_) => continue,
-        };
-
-        if line.is_empty() {
-            continue;
-        }
-
-        // Parse Claude CLI JSON event
-        if let Ok(event) = serde_json::from_str::<ClaudeEvent>(&line) {
-            if event.event_type == "assistant" {
-                // Extract text from message content
-                if let Some(ref message) = event.message {
-                    for block in &message.content {
-                        if block.content_type == "text" {
-                            wrapper.write(&block.text);
-                        }
-                    }
-                }
-            }
+    // Read and stream character by character
+    let mut buf = [0u8; 1];
+    while stdout.read(&mut buf).unwrap_or(0) > 0 {
+        if let Ok(s) = std::str::from_utf8(&buf) {
+            wrapper.write(s);
         }
     }
 
@@ -75,27 +48,6 @@ pub fn stream_analysis(report: &DiagnosticReport) -> Result<()> {
 
     child.wait()?;
     Ok(())
-}
-
-/// Event from Claude CLI stream-json output
-#[derive(serde::Deserialize)]
-struct ClaudeEvent {
-    #[serde(rename = "type")]
-    event_type: String,
-    message: Option<Message>,
-}
-
-#[derive(serde::Deserialize)]
-struct Message {
-    content: Vec<ContentBlock>,
-}
-
-#[derive(serde::Deserialize)]
-struct ContentBlock {
-    #[serde(rename = "type")]
-    content_type: String,
-    #[serde(default)]
-    text: String,
 }
 
 /// Build the prompt for AI analysis

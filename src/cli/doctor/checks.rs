@@ -202,17 +202,11 @@ fn detect_conflicts(shell_integration: &ShellIntegrationStatus) -> Vec<Conflict>
     // Check rbenv
     let rbenv_dir = home.join(".rbenv");
     let rbenv_exists = rbenv_dir.exists();
-    let rbenv_in_path = path_entries
-        .iter()
-        .position(|p| p.contains(".rbenv/shims"));
+    let rbenv_in_path = path_entries.iter().position(|p| p.contains(".rbenv/shims"));
     conflicts.push(Conflict {
         tool: "rbenv".to_string(),
         detected: rbenv_exists,
-        location: if rbenv_exists {
-            Some(rbenv_dir)
-        } else {
-            None
-        },
+        location: if rbenv_exists { Some(rbenv_dir) } else { None },
         in_path: rbenv_in_path.is_some(),
         path_position: rbenv_in_path,
         impact: if !rbenv_exists {
@@ -233,11 +227,7 @@ fn detect_conflicts(shell_integration: &ShellIntegrationStatus) -> Vec<Conflict>
     conflicts.push(Conflict {
         tool: "asdf".to_string(),
         detected: asdf_exists,
-        location: if asdf_exists {
-            Some(asdf_dir)
-        } else {
-            None
-        },
+        location: if asdf_exists { Some(asdf_dir) } else { None },
         in_path: asdf_in_path.is_some(),
         path_position: asdf_in_path,
         impact: if !asdf_exists {
@@ -258,11 +248,7 @@ fn detect_conflicts(shell_integration: &ShellIntegrationStatus) -> Vec<Conflict>
     conflicts.push(Conflict {
         tool: "rvm".to_string(),
         detected: rvm_exists,
-        location: if rvm_exists {
-            Some(rvm_dir)
-        } else {
-            None
-        },
+        location: if rvm_exists { Some(rvm_dir) } else { None },
         in_path: rvm_in_path.is_some(),
         path_position: rvm_in_path,
         impact: if !rvm_exists {
@@ -283,11 +269,7 @@ fn detect_conflicts(shell_integration: &ShellIntegrationStatus) -> Vec<Conflict>
     conflicts.push(Conflict {
         tool: "mise".to_string(),
         detected: mise_exists,
-        location: if mise_exists {
-            Some(mise_dir)
-        } else {
-            None
-        },
+        location: if mise_exists { Some(mise_dir) } else { None },
         in_path: mise_in_path.is_some(),
         path_position: mise_in_path,
         impact: if !mise_exists {
@@ -362,9 +344,9 @@ fn analyze_path(ruby_status: &RubyStatus) -> PathAnalysis {
     };
 
     // Check if ruby is correct
-    let ruby_correct = which_ruby.as_ref().map_or(false, |p| {
-        p.to_string_lossy().contains(".railsup/ruby/")
-    });
+    let ruby_correct = which_ruby
+        .as_ref()
+        .map_or(false, |p| p.to_string_lossy().contains(".railsup/ruby/"));
 
     // Check if gem_bin is in PATH
     let gem_bin_in_path = entries

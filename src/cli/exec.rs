@@ -67,7 +67,12 @@ fn build_ruby_env(version: &str) -> HashMap<String, String> {
 
     // Prepend our Ruby bin AND gem bin to PATH
     let current_path = env.get("PATH").cloned().unwrap_or_default();
-    let new_path = format!("{}:{}:{}", ruby_bin.display(), gem_bin.display(), current_path);
+    let new_path = format!(
+        "{}:{}:{}",
+        ruby_bin.display(),
+        gem_bin.display(),
+        current_path
+    );
     env.insert("PATH".into(), new_path);
 
     // Set GEM_HOME and GEM_PATH to our directories

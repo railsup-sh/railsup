@@ -61,7 +61,9 @@ fn print_report(report: &report::DiagnosticReport, verbose: bool) {
     } else {
         ui::success(&format!(
             "Ruby versions installed: {}",
-            report.ruby_versions.iter()
+            report
+                .ruby_versions
+                .iter()
                 .map(|v| v.version.as_str())
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -125,9 +127,7 @@ fn print_report(report: &report::DiagnosticReport, verbose: bool) {
     println!();
 
     // Conflicts section
-    let active_conflicts: Vec<_> = report.conflicts.iter()
-        .filter(|c| c.detected)
-        .collect();
+    let active_conflicts: Vec<_> = report.conflicts.iter().filter(|c| c.detected).collect();
 
     if !active_conflicts.is_empty() || verbose {
         println!("Conflicts");
@@ -142,7 +142,11 @@ fn print_report(report: &report::DiagnosticReport, verbose: bool) {
                             ui::dim(&format!(
                                 "{} installed at {} (not active)",
                                 conflict.tool,
-                                conflict.location.as_ref().map(|p| p.display().to_string()).unwrap_or_default()
+                                conflict
+                                    .location
+                                    .as_ref()
+                                    .map(|p| p.display().to_string())
+                                    .unwrap_or_default()
                             ));
                         }
                     }
@@ -205,7 +209,10 @@ fn print_report(report: &report::DiagnosticReport, verbose: bool) {
                 ui::success(&format!("which ruby -> {}", which_ruby.display()));
             } else {
                 ui::error(&format!("which ruby -> {}", which_ruby.display()));
-                println!("    Expected: {}", report.path_analysis.expected_ruby.display());
+                println!(
+                    "    Expected: {}",
+                    report.path_analysis.expected_ruby.display()
+                );
             }
         } else if report.ruby_status.any_installed {
             ui::warn("which ruby -> not found");
@@ -266,7 +273,10 @@ fn apply_fixes(report: &report::DiagnosticReport) -> Result<()> {
         println!("1. Shell integration not configured");
 
         if let Some(shell_file) = get_shell_config_file() {
-            println!("   Fix: Add `eval \"$(railsup shell-init)\"` to {}", shell_file);
+            println!(
+                "   Fix: Add `eval \"$(railsup shell-init)\"` to {}",
+                shell_file
+            );
             print!("   [Apply? y/n] ");
 
             use std::io::{self, Write};
@@ -281,9 +291,7 @@ fn apply_fixes(report: &report::DiagnosticReport) -> Result<()> {
                 let config_path = home.join(&shell_file);
 
                 use std::fs::OpenOptions;
-                let mut file = OpenOptions::new()
-                    .append(true)
-                    .open(&config_path)?;
+                let mut file = OpenOptions::new().append(true).open(&config_path)?;
 
                 use std::io::Write as _;
                 writeln!(file)?;

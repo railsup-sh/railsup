@@ -60,13 +60,14 @@ pub fn run(ruby_version: Option<String>, command: Vec<String>) -> Result<()> {
 fn build_ruby_env(version: &str) -> HashMap<String, String> {
     let ruby_bin = paths::ruby_bin_dir(version);
     let gem_home = paths::gems_version_dir(version);
+    let gem_bin = gem_home.join("bin");
 
     // Start with current environment
     let mut env: HashMap<String, String> = std::env::vars().collect();
 
-    // Prepend our Ruby bin to PATH
+    // Prepend our Ruby bin AND gem bin to PATH
     let current_path = env.get("PATH").cloned().unwrap_or_default();
-    let new_path = format!("{}:{}", ruby_bin.display(), current_path);
+    let new_path = format!("{}:{}:{}", ruby_bin.display(), gem_bin.display(), current_path);
     env.insert("PATH".into(), new_path);
 
     // Set GEM_HOME and GEM_PATH to our directories

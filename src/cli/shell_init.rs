@@ -22,9 +22,14 @@ pub fn run(shell: Option<String>) -> Result<()> {
 
 /// Detect shell type from $SHELL environment variable
 fn detect_shell() -> String {
-    env::var("SHELL")
-        .ok()
+    detect_shell_from_env(env::var("SHELL").ok())
+}
+
+/// Extract shell name from SHELL env value (testable helper)
+fn detect_shell_from_env(shell_var: Option<String>) -> String {
+    shell_var
         .and_then(|s| s.rsplit('/').next().map(String::from))
+        .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "bash".to_string())
 }
 
@@ -114,16 +119,197 @@ set -gx GEM_PATH {gem_home}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    // ==================== detect_shell_from_env tests ====================
 
     #[test]
-    fn detect_shell_extracts_shell_name() {
-        std::env::set_var("SHELL", "/bin/zsh");
-        assert_eq!(detect_shell(), "zsh");
+    fn detect_shell_extracts_zsh() {
+        assert_eq!(detect_shell_from_env(Some("/bin/zsh".to_string())), "zsh");
+    }
 
-        std::env::set_var("SHELL", "/usr/local/bin/fish");
-        assert_eq!(detect_shell(), "fish");
+    #[test]
+    fn detect_shell_extracts_fish() {
+        assert_eq!(
+            detect_shell_from_env(Some("/usr/local/bin/fish".to_string())),
+            "fish"
+        );
+    }
 
-        std::env::set_var("SHELL", "/bin/bash");
-        assert_eq!(detect_shell(), "bash");
+    #[test]
+    fn detect_shell_extracts_bash() {
+        assert_eq!(detect_shell_from_env(Some("/bin/bash".to_string())), "bash");
+    }
+
+    #[test]
+    fn detect_shell_handles_homebrew_path() {
+        assert_eq!(
+            detect_shell_from_env(Some("/opt/homebrew/bin/zsh".to_string())),
+            "zsh"
+        );
+    }
+
+    #[test]
+    fn detect_shell_defaults_to_bash_when_none() {
+        assert_eq!(detect_shell_from_env(None), "bash");
+    }
+
+    #[test]
+    fn detect_shell_defaults_to_bash_when_empty() {
+        assert_eq!(detect_shell_from_env(Some("".to_string())), "bash");
+    }
+
+    // ==================== generate_posix tests ====================
+
+    #[test]
+    fn generate_posix_includes_version_comment() {
+        let output = generate_posix(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("Ruby 4.0.1"));
+    }
+
+    #[test]
+    fn generate_posix_includes_important_warning() {
+        let output = generate_posix(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("IMPORTANT"));
+        assert!(output.contains("rbenv/asdf/rvm"));
+    }
+
+    #[test]
+    fn generate_posix_exports_path() {
+        let output = generate_posix(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("export PATH="));
+        assert!(output.contains("/home/user/.railsup/ruby/4.0.1/bin"));
+        assert!(output.contains("/home/user/.railsup/gems/4.0.1/bin"));
+    }
+
+    #[test]
+    fn generate_posix_exports_gem_home() {
+        let output = generate_posix(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("export GEM_HOME="));
+        assert!(output.contains("/home/user/.railsup/gems/4.0.1"));
+    }
+
+    #[test]
+    fn generate_posix_exports_gem_path() {
+        let output = generate_posix(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("export GEM_PATH="));
+    }
+
+    #[test]
+    fn generate_posix_includes_eval_instruction() {
+        let output = generate_posix(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("eval \"$(railsup shell-init)\""));
+    }
+
+    // ==================== generate_fish tests ====================
+
+    #[test]
+    fn generate_fish_includes_version_comment() {
+        let output = generate_fish(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("Ruby 4.0.1"));
+    }
+
+    #[test]
+    fn generate_fish_includes_important_warning() {
+        let output = generate_fish(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("IMPORTANT"));
+        assert!(output.contains("rbenv/asdf/rvm"));
+    }
+
+    #[test]
+    fn generate_fish_sets_path_with_correct_syntax() {
+        let output = generate_fish(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("set -gx PATH"));
+        assert!(output.contains("/home/user/.railsup/ruby/4.0.1/bin"));
+    }
+
+    #[test]
+    fn generate_fish_sets_gem_home() {
+        let output = generate_fish(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("set -gx GEM_HOME"));
+    }
+
+    #[test]
+    fn generate_fish_sets_gem_path() {
+        let output = generate_fish(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("set -gx GEM_PATH"));
+    }
+
+    #[test]
+    fn generate_fish_includes_source_instruction() {
+        let output = generate_fish(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        assert!(output.contains("railsup shell-init | source"));
+    }
+
+    #[test]
+    fn generate_fish_does_not_use_export_keyword() {
+        let output = generate_fish(
+            "4.0.1",
+            &PathBuf::from("/home/user/.railsup/ruby/4.0.1/bin"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1"),
+            &PathBuf::from("/home/user/.railsup/gems/4.0.1/bin"),
+        );
+        // Fish uses 'set -gx', not 'export'
+        assert!(!output.contains("export "));
     }
 }

@@ -33,6 +33,7 @@ fn run() -> Result<()> {
         Some(Commands::Ruby(cmd)) => cli::ruby::run(cmd),
         Some(Commands::Which { command }) => cli::which::run(&command),
         Some(Commands::Exec { ruby, command }) => cli::exec::run(ruby, command),
+        Some(Commands::ShellInit { shell }) => cli::shell_init::run(shell),
         None => {
             // No command provided, show help
             use clap::CommandFactory;

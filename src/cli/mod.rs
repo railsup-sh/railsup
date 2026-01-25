@@ -52,6 +52,13 @@ pub enum Commands {
         #[arg(trailing_var_arg = true, required = true)]
         command: Vec<String>,
     },
+
+    /// Output shell integration script for PATH setup
+    ShellInit {
+        /// Shell type (zsh, bash, fish). Auto-detected if not specified.
+        #[arg(long)]
+        shell: Option<String>,
+    },
 }
 
 pub mod agent;
@@ -59,4 +66,5 @@ pub mod dev;
 pub mod exec;
 pub mod new;
 pub mod ruby;
+pub mod shell_init;
 pub mod which;

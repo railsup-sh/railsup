@@ -4,13 +4,15 @@ pub fn success(msg: &str) {
 }
 
 /// Print an error message with X
+/// Uses stderr to avoid being captured by shell eval
 pub fn error(msg: &str) {
-    println!("  ✗ {}", msg);
+    eprintln!("  ✗ {}", msg);
 }
 
 /// Print a warning message
+/// Uses stderr to avoid being captured by shell eval
 pub fn warn(msg: &str) {
-    println!("  ⚠ {}", msg);
+    eprintln!("  ⚠ {}", msg);
 }
 
 /// Print a dimmed/secondary message

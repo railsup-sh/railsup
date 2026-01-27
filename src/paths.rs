@@ -59,6 +59,11 @@ pub fn ruby_bin_dir(version: &str) -> PathBuf {
     ruby_version_dir(version).join("bin")
 }
 
+/// Get the gems bin directory for a specific Ruby version
+pub fn gems_bin_dir(version: &str) -> PathBuf {
+    gems_version_dir(version).join("bin")
+}
+
 /// Ensure all railsup directories exist
 pub fn ensure_dirs() -> std::io::Result<()> {
     std::fs::create_dir_all(ruby_dir())?;

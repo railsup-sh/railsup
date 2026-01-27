@@ -15,6 +15,14 @@ build:
 release:
     cargo build --release
 
+# Build release binary to build/ directory for local testing
+build-local:
+    cargo build --release
+    mkdir -p build
+    cp target/release/{{binary_name}} build/{{binary_name}}
+    @echo "Built build/{{binary_name}}"
+    @./build/{{binary_name}} --version
+
 # Run tests
 test:
     cargo test

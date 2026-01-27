@@ -22,6 +22,18 @@ pub fn run_streaming_with_env<S: AsRef<OsStr>>(
     working_dir: Option<&Path>,
     prepend_path: Option<&Path>,
 ) -> Result<ExitStatus> {
+    run_streaming_with_full_env(program, args, working_dir, prepend_path, None)
+}
+
+/// Run a command with output streamed to the terminal, with custom PATH and GEM_HOME.
+/// This ensures subprocesses use the correct Ruby and gem directories.
+pub fn run_streaming_with_full_env<S: AsRef<OsStr>>(
+    program: &str,
+    args: &[S],
+    working_dir: Option<&Path>,
+    prepend_path: Option<&Path>,
+    gem_home: Option<&Path>,
+) -> Result<ExitStatus> {
     let mut cmd = Command::new(program);
     cmd.args(args)
         .stdin(Stdio::inherit())
@@ -37,6 +49,12 @@ pub fn run_streaming_with_env<S: AsRef<OsStr>>(
         let current_path = std::env::var("PATH").unwrap_or_default();
         let new_path = format!("{}:{}", bin_dir.display(), current_path);
         cmd.env("PATH", new_path);
+    }
+
+    // Set GEM_HOME and GEM_PATH so gems install to the correct directory
+    if let Some(gh) = gem_home {
+        cmd.env("GEM_HOME", gh);
+        cmd.env("GEM_PATH", gh);
     }
 
     let status = cmd

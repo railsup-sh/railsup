@@ -46,16 +46,18 @@ pub fn run(name: &str, force: bool) -> Result<()> {
 
     // 4. Get Rails version and ensure it's installed
     let rails_version = get_rails_version();
-    ensure_rails_installed(&ruby_bin, &rails_version)?;
+    let gem_home = paths::gems_version_dir(&ruby_version);
+    ensure_rails_installed(&ruby_bin, &gem_home, &rails_version)?;
 
     // 5. Run rails new
     ui::info(&format!("Creating Rails {} app...", rails_version));
 
-    // Use rails directly from our Ruby's bin and prepend to PATH
-    // so that subprocesses (gem install, bundle exec, etc.) also use our Ruby
-    let rails_path = ruby_bin.join("rails");
+    // Use rails from gems bin directory (where gem install puts executables)
+    // and prepend ruby bin to PATH so subprocesses use our Ruby
+    let gems_bin = paths::gems_bin_dir(&ruby_version);
+    let rails_path = gems_bin.join("rails");
     let rails_version_arg = format!("_{}_", rails_version);
-    let status = process::run_streaming_with_env(
+    let status = process::run_streaming_with_full_env(
         rails_path.to_str().unwrap(),
         &[
             rails_version_arg.as_str(),
@@ -70,6 +72,7 @@ pub fn run(name: &str, force: bool) -> Result<()> {
         ],
         None,
         Some(&ruby_bin),
+        Some(&gem_home),
     )?;
 
     if !status.success() {
@@ -160,7 +163,7 @@ pub fn ensure_ruby_available() -> Result<String> {
     Ok(DEFAULT_RUBY_VERSION.to_string())
 }
 
-fn ensure_rails_installed(ruby_bin: &Path, rails_version: &str) -> Result<()> {
+fn ensure_rails_installed(ruby_bin: &Path, gem_home: &Path, rails_version: &str) -> Result<()> {
     let gem_path = ruby_bin.join("gem");
     let gem_str = gem_path.to_str().unwrap();
 
@@ -172,14 +175,16 @@ fn ensure_rails_installed(ruby_bin: &Path, rails_version: &str) -> Result<()> {
     }
 
     // Install Rails
-    // Use run_streaming_with_env to ensure any subprocesses (native extension compilation)
-    // also use our Ruby, not system Ruby
+    // Use run_streaming_with_full_env to ensure:
+    // 1. Subprocesses (native extension compilation) use our Ruby
+    // 2. Gems install to our gem_home directory
     ui::info(&format!("Installing Rails {}...", rails_version));
-    let status = process::run_streaming_with_env(
+    let status = process::run_streaming_with_full_env(
         gem_str,
         &["install", "rails", "-v", rails_version, "--no-document"],
         None,
         Some(ruby_bin),
+        Some(gem_home),
     )?;
 
     if !status.success() {

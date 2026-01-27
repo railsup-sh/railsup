@@ -71,6 +71,30 @@ version:
 tag ver:
     #!/usr/bin/env bash
     set -euo pipefail
+
+    # Check for uncommitted changes (excluding Cargo.toml which we'll update)
+    if ! git diff --quiet -- ':!Cargo.toml' ':!Cargo.lock'; then
+        echo "Error: You have uncommitted changes. Commit or stash them first."
+        exit 1
+    fi
+
+    # Get current version from Cargo.toml
+    CURRENT_VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+
+    if [ "$CURRENT_VERSION" = "{{ver}}" ]; then
+        echo "Cargo.toml already at version {{ver}}"
+    else
+        echo "Updating Cargo.toml: $CURRENT_VERSION → {{ver}}"
+        sed -i 's/^version = ".*"/version = "{{ver}}"/' Cargo.toml
+
+        # Update Cargo.lock
+        cargo check --quiet 2>/dev/null || true
+
+        git add Cargo.toml Cargo.lock
+        git commit -m "Bump version to {{ver}}"
+        git push origin HEAD
+    fi
+
     echo "Creating tag v{{ver}}..."
     git tag -a "v{{ver}}" -m "Release {{ver}}"
     echo "Pushing tag to origin..."
@@ -78,6 +102,36 @@ tag ver:
     echo ""
     echo "Tagged and pushed v{{ver}}"
     echo "GitHub Actions will build and publish to bkt.sh"
+
+# Preview what tag would do without making changes
+tag-dry-run ver:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== DRY RUN: tag {{ver}} ==="
+    echo ""
+
+    # Check for uncommitted changes
+    if ! git diff --quiet -- ':!Cargo.toml' ':!Cargo.lock'; then
+        echo "⚠ Warning: You have uncommitted changes"
+        git status --short -- ':!Cargo.toml' ':!Cargo.lock'
+        echo ""
+    fi
+
+    # Get current version from Cargo.toml
+    CURRENT_VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+
+    if [ "$CURRENT_VERSION" = "{{ver}}" ]; then
+        echo "✓ Cargo.toml already at version {{ver}}"
+    else
+        echo "→ Would update Cargo.toml: $CURRENT_VERSION → {{ver}}"
+        echo "→ Would commit: \"Bump version to {{ver}}\""
+        echo "→ Would push commit to origin"
+    fi
+
+    echo "→ Would create tag: v{{ver}}"
+    echo "→ Would push tag to origin"
+    echo ""
+    echo "Run 'just tag {{ver}}' to execute"
 
 # Delete a tag locally and remotely
 tag-delete ver:

@@ -484,8 +484,6 @@ fn spawn_process(
     Ok(child)
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

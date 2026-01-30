@@ -287,10 +287,7 @@ pub fn build_full_env(
     // If we have bundle context and opt-out is not active, set BUNDLE_GEMFILE
     if !is_bundle_opt_out() {
         if let Some(ctx) = bundle_ctx {
-            env.insert(
-                "BUNDLE_GEMFILE".into(),
-                ctx.gemfile.display().to_string(),
-            );
+            env.insert("BUNDLE_GEMFILE".into(), ctx.gemfile.display().to_string());
         }
     }
 
@@ -375,9 +372,7 @@ pub fn check_missing_gems_error(stderr: &str) -> Option<String> {
 
     for pattern in &missing_patterns {
         if stderr.contains(pattern) {
-            return Some(
-                "Gems may be missing. Run: railsup exec bundle install".to_string()
-            );
+            return Some("Gems may be missing. Run: railsup exec bundle install".to_string());
         }
     }
 
@@ -717,7 +712,8 @@ mod tests {
 
         let ctx = detect_bundle_context(dir.path());
         // exec prefix is preserved along with env vars
-        let result = wrap_procfile_command(&ctx, "PORT=3000 RAILS_ENV=production exec rails server");
+        let result =
+            wrap_procfile_command(&ctx, "PORT=3000 RAILS_ENV=production exec rails server");
         assert_eq!(
             result,
             "PORT=3000 RAILS_ENV=production exec bundle exec rails server"
@@ -732,7 +728,10 @@ mod tests {
         std::fs::write(dir.path().join("Gemfile"), "").unwrap();
 
         let ctx = detect_bundle_context(dir.path());
-        let result = wrap_procfile_command(&ctx, "PORT=3000 RAILS_ENV=development rails server -b 0.0.0.0");
+        let result = wrap_procfile_command(
+            &ctx,
+            "PORT=3000 RAILS_ENV=development rails server -b 0.0.0.0",
+        );
         assert_eq!(
             result,
             "PORT=3000 RAILS_ENV=development bundle exec rails server -b 0.0.0.0"

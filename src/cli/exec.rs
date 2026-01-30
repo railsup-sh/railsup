@@ -6,11 +6,19 @@
 //! 1. Prepending railsup Ruby bin to PATH
 //! 2. Setting GEM_HOME/GEM_PATH to railsup directories
 //! 3. Clearing problematic env vars (RUBYOPT, RUBYLIB)
+//!
+//! Implements PEP-0016 (Gem Isolation Strategy):
+//! - Detects bundle context (Gemfile within Rails root)
+//! - Wraps commands with bundle exec or uses binstubs automatically
 
+use crate::cli::bundler::{
+    build_full_env, detect_bundle_context, format_bundle_detected_message, is_bundle_opt_out,
+    wrap_command,
+};
 use crate::cli::which::resolve_ruby_version;
 use crate::paths;
+use crate::util::ui;
 use anyhow::{bail, Result};
-use std::collections::HashMap;
 
 /// Run a command with railsup Ruby environment
 pub fn run(ruby_version: Option<String>, command: Vec<String>) -> Result<()> {
@@ -34,12 +42,24 @@ pub fn run(ruby_version: Option<String>, command: Vec<String>) -> Result<()> {
         );
     }
 
-    // 3. Build environment
-    let env = build_ruby_env(&version);
+    // 3. Detect bundle context (PEP-0016)
+    let current_dir = std::env::current_dir()?;
+    let bundle_ctx = detect_bundle_context(&current_dir);
 
-    // 4. Execute (replaces current process)
+    // Show bundle detection message if in a Rails project (respects opt-out)
+    if let Some(ref ctx) = bundle_ctx {
+        if !is_bundle_opt_out() {
+            ui::info(&format_bundle_detected_message(ctx));
+        }
+    }
+
+    // 4. Apply command wrapping (PEP-0016)
     let program = &command[0];
-    let args = &command[1..];
+    let args: Vec<String> = command[1..].to_vec();
+    let (wrapped_program, wrapped_args) = wrap_command(&bundle_ctx, program, &args);
+
+    // 5. Build environment with bundle context
+    let env = build_full_env(&version, &bundle_ctx);
 
     // Set environment variables before exec
     for (key, value) in &env {
@@ -50,45 +70,31 @@ pub fn run(ruby_version: Option<String>, command: Vec<String>) -> Result<()> {
     std::env::remove_var("RUBYOPT");
     std::env::remove_var("RUBYLIB");
 
-    let err = exec::Command::new(program).args(args).exec();
+    // 6. Resolve command path
+    let cmd_path = if wrapped_program.starts_with("bin/") {
+        // Binstub - resolve relative to Rails root
+        if let Some(ref ctx) = bundle_ctx {
+            ctx.rails_root.join(&wrapped_program).display().to_string()
+        } else {
+            wrapped_program.clone()
+        }
+    } else {
+        wrapped_program.clone()
+    };
+
+    let err = exec::Command::new(&cmd_path).args(&wrapped_args).exec();
 
     // exec() only returns on error
-    bail!("Failed to execute '{}': {}", program, err)
-}
-
-/// Build environment with railsup Ruby paths
-fn build_ruby_env(version: &str) -> HashMap<String, String> {
-    let ruby_bin = paths::ruby_bin_dir(version);
-    let gem_home = paths::gems_version_dir(version);
-    let gem_bin = gem_home.join("bin");
-
-    // Start with current environment
-    let mut env: HashMap<String, String> = std::env::vars().collect();
-
-    // Prepend our Ruby bin AND gem bin to PATH
-    let current_path = env.get("PATH").cloned().unwrap_or_default();
-    let new_path = format!(
-        "{}:{}:{}",
-        ruby_bin.display(),
-        gem_bin.display(),
-        current_path
-    );
-    env.insert("PATH".into(), new_path);
-
-    // Set GEM_HOME and GEM_PATH to our directories
-    env.insert("GEM_HOME".into(), gem_home.display().to_string());
-    env.insert("GEM_PATH".into(), gem_home.display().to_string());
-
-    // Clear problematic variables that could interfere
-    env.remove("RUBYOPT");
-    env.remove("RUBYLIB");
-
-    env
+    bail!("Failed to execute '{}': {}", cmd_path, err)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::cli::bundler::build_ruby_env;
+    use std::sync::Mutex;
+
+    /// Mutex to serialize tests that modify environment variables
+    static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
     #[test]
     fn build_ruby_env_prepends_path() {
@@ -107,6 +113,7 @@ mod tests {
 
     #[test]
     fn build_ruby_env_clears_rubyopt() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         std::env::set_var("RUBYOPT", "-rbundler/setup");
         let env = build_ruby_env("4.0.1");
         assert!(!env.contains_key("RUBYOPT"));
@@ -115,6 +122,7 @@ mod tests {
 
     #[test]
     fn build_ruby_env_clears_rubylib() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         std::env::set_var("RUBYLIB", "/some/path");
         let env = build_ruby_env("4.0.1");
         assert!(!env.contains_key("RUBYLIB"));

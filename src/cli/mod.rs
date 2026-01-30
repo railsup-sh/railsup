@@ -77,6 +77,7 @@ pub enum Commands {
 }
 
 pub mod agent;
+pub mod bundler;
 pub mod dev;
 pub mod doctor;
 pub mod exec;

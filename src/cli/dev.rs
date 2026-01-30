@@ -1,3 +1,8 @@
+use crate::cli::bundler::{
+    self, build_full_env, check_bundler_version_mismatch, detect_bundle_context,
+    format_bundle_detected_message, is_bundle_opt_out, needs_bundle_install, wrap_procfile_command,
+    BundleContext,
+};
 use crate::cli::new::ensure_ruby_available;
 use crate::paths;
 use crate::util::ui;
@@ -5,7 +10,7 @@ use anyhow::{bail, Result};
 use std::collections::HashMap;
 use std::env;
 use std::io::{BufRead, BufReader, IsTerminal};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -56,30 +61,72 @@ fn get_reset() -> &'static str {
 }
 
 pub fn run(port: u16) -> Result<()> {
-    // 1. Find Rails root
+    // 1. Detect bundle context (finds Rails root + Gemfile)
     let current_dir = env::current_dir()?;
-    let rails_root = find_rails_root(&current_dir).ok_or_else(|| {
+    let bundle_ctx = detect_bundle_context(&current_dir).ok_or_else(|| {
         anyhow::anyhow!("Not a Rails directory. Create one with: railsup new myapp")
     })?;
+
+    // Show bundle detection message (PEP-0016, respects opt-out)
+    if !is_bundle_opt_out() {
+        ui::info(&format_bundle_detected_message(&bundle_ctx));
+    }
 
     // 2. Ensure Ruby is available (auto-bootstrap if needed)
     let ruby_version = ensure_ruby_available()?;
     let ruby_bin = paths::ruby_bin_dir(&ruby_version);
 
-    // 3. Check for Procfile.dev
-    let procfile_path = rails_root.join("Procfile.dev");
-    if procfile_path.exists() {
-        run_with_procfile(&procfile_path, &rails_root, &ruby_bin, port)
-    } else {
-        run_server_only(&rails_root, &ruby_bin, port)
+    // 3. Check for bundler version mismatch (PEP-0016)
+    if let Some(warning) = check_bundler_version_mismatch(&bundle_ctx, &ruby_bin) {
+        ui::warn(&warning);
     }
+
+    // 4. Check for missing Gemfile.lock and auto-install if needed
+    if needs_bundle_install(&bundle_ctx) {
+        ui::info("No Gemfile.lock found. Running bundle install...");
+        run_bundle_install(&bundle_ctx, &ruby_version)?;
+    }
+
+    // 5. Check for Procfile.dev
+    let procfile_path = bundle_ctx.rails_root.join("Procfile.dev");
+    if procfile_path.exists() {
+        run_with_procfile(&procfile_path, &bundle_ctx, &ruby_version, port)
+    } else {
+        run_server_only(&bundle_ctx, &ruby_bin, port)
+    }
+}
+
+/// Run bundle install to create Gemfile.lock
+fn run_bundle_install(bundle_ctx: &BundleContext, ruby_version: &str) -> Result<()> {
+    let env_vars = build_full_env(ruby_version, &Some(bundle_ctx.clone()));
+    let ruby_bin = paths::ruby_bin_dir(ruby_version);
+    let bundle_path = ruby_bin.join("bundle");
+
+    let status = Command::new(&bundle_path)
+        .arg("install")
+        .current_dir(&bundle_ctx.rails_root)
+        .envs(&env_vars)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()?;
+
+    if !status.success() {
+        bail!(
+            "bundle install failed. Try running manually:\n  \
+             cd {} && bundle install",
+            bundle_ctx.rails_root.display()
+        );
+    }
+
+    Ok(())
 }
 
 /// Run all processes defined in Procfile.dev
 fn run_with_procfile(
     procfile_path: &Path,
-    rails_root: &Path,
-    ruby_bin: &Path,
+    bundle_ctx: &BundleContext,
+    ruby_version: &str,
     port: u16,
 ) -> Result<()> {
     let processes = parse_procfile(procfile_path)?;
@@ -90,27 +137,26 @@ fn run_with_procfile(
 
     ui::info("Starting development processes...");
 
-    // Build environment with railsup Ruby in PATH
-    let mut env_vars: HashMap<String, String> = std::env::vars().collect();
-    let current_path = env_vars.get("PATH").cloned().unwrap_or_default();
-    env_vars.insert(
-        "PATH".to_string(),
-        format!("{}:{}", ruby_bin.display(), current_path),
-    );
+    // Build environment with full Ruby + bundle context (PEP-0016)
+    let env_vars = build_full_env(ruby_version, &Some(bundle_ctx.clone()));
 
     // Spawn all processes
     let mut children: Vec<(String, Child)> = vec![];
+    let bundle_ctx_opt = Some(bundle_ctx.clone());
     for (i, (name, mut command)) in processes.into_iter().enumerate() {
         // Replace port in web process
         if name == "web" {
             command = replace_port_in_command(&command, port);
         }
 
+        // Wrap Procfile commands with bundle exec if needed (PEP-0016)
+        command = wrap_procfile_command(&bundle_ctx_opt, &command);
+
         let color = get_color(i);
         let reset = get_reset();
         ui::info(&format!("{}[{}]{} {}", color, name, reset, command));
 
-        let child = spawn_process(&command, rails_root, &env_vars)?;
+        let child = spawn_process(&command, &bundle_ctx.rails_root, &env_vars)?;
         children.push((name, child));
     }
 
@@ -274,23 +320,40 @@ fn terminate_process(child: &mut Child) {
 }
 
 /// Run Rails server only (fallback when no Procfile.dev)
-fn run_server_only(rails_root: &Path, ruby_bin: &Path, port: u16) -> Result<()> {
+fn run_server_only(bundle_ctx: &BundleContext, ruby_bin: &Path, port: u16) -> Result<()> {
     ui::info(&format!("Starting Rails on http://localhost:{}", port));
 
-    let bundle_path = ruby_bin.join("bundle");
     let port_str = port.to_string();
 
-    let status = Command::new(&bundle_path)
-        .args(["exec", "rails", "server", "-p", &port_str])
-        .current_dir(rails_root)
-        .env(
-            "PATH",
-            format!(
-                "{}:{}",
-                ruby_bin.display(),
-                std::env::var("PATH").unwrap_or_default()
-            ),
-        )
+    // Use binstub if available, otherwise bundle exec (PEP-0016)
+    let bundle_ctx_opt = Some(bundle_ctx.clone());
+    let (cmd, args) = bundler::wrap_command(
+        &bundle_ctx_opt,
+        "rails",
+        &["server".to_string(), "-p".to_string(), port_str],
+    );
+
+    // Build full path to command
+    let cmd_path = if cmd == "bundle" || cmd == "rails" {
+        ruby_bin.join(&cmd)
+    } else {
+        // It's a binstub path like "bin/rails"
+        bundle_ctx.rails_root.join(&cmd)
+    };
+
+    // Build environment with full Ruby + bundle context
+    let ruby_version = ruby_bin
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .map(|s| s.trim_start_matches("ruby-"))
+        .unwrap_or("unknown");
+    let env_vars = build_full_env(ruby_version, &bundle_ctx_opt);
+
+    let status = Command::new(&cmd_path)
+        .args(&args)
+        .current_dir(&bundle_ctx.rails_root)
+        .envs(&env_vars)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -300,7 +363,7 @@ fn run_server_only(rails_root: &Path, ruby_bin: &Path, port: u16) -> Result<()> 
         bail!(
             "Server exited with error.\n  \
              Try running manually: cd {} && bundle exec rails server",
-            rails_root.display()
+            bundle_ctx.rails_root.display()
         );
     }
 
@@ -421,29 +484,16 @@ fn spawn_process(
     Ok(child)
 }
 
-/// Search upward from start directory to find Rails root.
-/// Returns the directory containing config/application.rb, or None if not found.
-fn find_rails_root(start: &Path) -> Option<PathBuf> {
-    let mut current = start.to_path_buf();
 
-    loop {
-        let marker = current.join("config/application.rb");
-        if marker.exists() {
-            return Some(current);
-        }
-
-        if !current.pop() {
-            return None;
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cli::bundler::find_rails_root;
     use tempfile::tempdir;
 
     // ==================== find_rails_root tests ====================
+    // (Tests now use bundler::find_rails_root)
 
     #[test]
     fn find_rails_root_in_project_dir() {

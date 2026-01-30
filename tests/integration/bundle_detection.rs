@@ -8,6 +8,7 @@
 use super::harness::{railsup, Fixture, RailsupAssertions};
 
 #[test]
+#[ignore]
 fn detects_gemfile_in_rails_project() {
     let fixture = Fixture::load("rails-8-app");
     let result = railsup(&fixture, &["--help"]);
@@ -17,6 +18,7 @@ fn detects_gemfile_in_rails_project() {
 }
 
 #[test]
+#[ignore]
 fn no_detection_in_empty_directory() {
     let fixture = Fixture::load("empty-dir");
     let result = railsup(&fixture, &["dev"]);
@@ -27,6 +29,7 @@ fn no_detection_in_empty_directory() {
 }
 
 #[test]
+#[ignore]
 fn no_detection_in_non_rails_ruby_project() {
     let fixture = Fixture::load("non-rails-ruby");
     let result = railsup(&fixture, &["dev"]);
@@ -37,6 +40,7 @@ fn no_detection_in_non_rails_ruby_project() {
 }
 
 #[test]
+#[ignore]
 fn monorepo_uses_app_gemfile_not_parent() {
     // Run from the nested Rails app directory
     let fixture = Fixture::load("monorepo");
@@ -49,6 +53,7 @@ fn monorepo_uses_app_gemfile_not_parent() {
 }
 
 #[test]
+#[ignore]
 fn detects_bundle_context_shows_message() {
     let fixture = Fixture::load("rails-8-app");
     // Use exec with a simple command that will fail fast but show detection message

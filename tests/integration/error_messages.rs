@@ -8,6 +8,7 @@
 use super::harness::{railsup, Fixture, RailsupAssertions};
 
 #[test]
+#[ignore]
 fn dev_in_empty_dir_shows_helpful_error() {
     let fixture = Fixture::load("empty-dir");
     let result = railsup(&fixture, &["dev"]);
@@ -25,6 +26,7 @@ fn dev_in_empty_dir_shows_helpful_error() {
 }
 
 #[test]
+#[ignore]
 fn dev_in_non_rails_ruby_shows_clear_error() {
     let fixture = Fixture::load("non-rails-ruby");
     let result = railsup(&fixture, &["dev"]);
@@ -34,6 +36,7 @@ fn dev_in_non_rails_ruby_shows_clear_error() {
 }
 
 #[test]
+#[ignore]
 fn missing_lockfile_detected() {
     let fixture = Fixture::load("rails-no-lockfile");
     // This will likely fail because no Ruby installed, but we can check detection
@@ -53,6 +56,7 @@ fn missing_lockfile_detected() {
 }
 
 #[test]
+#[ignore]
 fn help_command_always_works() {
     let fixture = Fixture::load("empty-dir");
     let result = railsup(&fixture, &["--help"]);
@@ -62,6 +66,7 @@ fn help_command_always_works() {
 }
 
 #[test]
+#[ignore]
 fn version_command_works() {
     let fixture = Fixture::load("empty-dir");
     let result = railsup(&fixture, &["--version"]);

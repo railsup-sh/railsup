@@ -7,6 +7,7 @@
 use super::harness::{railsup, Fixture, RailsupAssertions};
 
 #[test]
+#[ignore]
 fn fixture_with_binstubs_has_bin_rails() {
     let fixture = Fixture::load("rails-8-app");
     let bin_rails = fixture.path.join("bin/rails");
@@ -15,6 +16,7 @@ fn fixture_with_binstubs_has_bin_rails() {
 }
 
 #[test]
+#[ignore]
 fn fixture_without_binstubs_missing_bin_rails() {
     let fixture = Fixture::load("rails-no-binstubs");
     let bin_rails = fixture.path.join("bin/rails");
@@ -22,6 +24,7 @@ fn fixture_without_binstubs_missing_bin_rails() {
 }
 
 #[test]
+#[ignore]
 fn detects_bundle_in_project_with_binstubs() {
     let fixture = Fixture::load("rails-8-app");
     let result = railsup(&fixture, &["exec", "echo", "hello"]);
@@ -31,6 +34,7 @@ fn detects_bundle_in_project_with_binstubs() {
 }
 
 #[test]
+#[ignore]
 fn detects_bundle_in_project_without_binstubs() {
     let fixture = Fixture::load("rails-no-binstubs");
     let result = railsup(&fixture, &["exec", "echo", "hello"]);

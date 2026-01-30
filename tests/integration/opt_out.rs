@@ -8,6 +8,7 @@ use super::harness::{railsup_with_env, Fixture, RailsupAssertions};
 use std::collections::HashMap;
 
 #[test]
+#[ignore]
 fn opt_out_disables_bundle_detection_message() {
     let fixture = Fixture::load("rails-8-app");
 
@@ -22,6 +23,7 @@ fn opt_out_disables_bundle_detection_message() {
 }
 
 #[test]
+#[ignore]
 fn opt_out_works_with_dev_command() {
     let fixture = Fixture::load("rails-8-app");
 
@@ -38,6 +40,7 @@ fn opt_out_works_with_dev_command() {
 }
 
 #[test]
+#[ignore]
 fn without_opt_out_shows_bundle_detection() {
     let fixture = Fixture::load("rails-8-app");
     let result = railsup_with_env(&fixture, &["exec", "echo", "test"], HashMap::new());

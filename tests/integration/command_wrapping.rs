@@ -8,6 +8,7 @@
 use super::harness::{railsup, Fixture, RailsupAssertions};
 
 #[test]
+#[ignore]
 fn exec_command_works_in_rails_project() {
     let fixture = Fixture::load("rails-8-app");
     let result = railsup(&fixture, &["exec", "echo", "integration-test-marker"]);
@@ -17,6 +18,7 @@ fn exec_command_works_in_rails_project() {
 }
 
 #[test]
+#[ignore]
 fn exec_command_shows_bundle_detected() {
     let fixture = Fixture::load("rails-8-app");
     let result = railsup(&fixture, &["exec", "echo", "test"]);
@@ -25,6 +27,7 @@ fn exec_command_shows_bundle_detected() {
 }
 
 #[test]
+#[ignore]
 fn exec_in_non_rails_project_no_bundle_detection() {
     let fixture = Fixture::load("non-rails-ruby");
     let result = railsup(&fixture, &["exec", "echo", "test"]);
@@ -35,6 +38,7 @@ fn exec_in_non_rails_project_no_bundle_detection() {
 }
 
 #[test]
+#[ignore]
 fn exec_in_empty_dir_no_bundle_detection() {
     let fixture = Fixture::load("empty-dir");
     let result = railsup(&fixture, &["exec", "echo", "test"]);

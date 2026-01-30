@@ -92,18 +92,18 @@ Download from [GitHub Releases](https://github.com/railsup-sh/railsup/releases):
 
 ```bash
 # macOS ARM64
-curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.3.5/railsup-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.3.16/railsup-aarch64-apple-darwin.tar.gz
 tar xzf railsup-aarch64-apple-darwin.tar.gz
 sudo mv railsup /usr/local/bin/
 
 # macOS x86_64
-curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.3.5/railsup-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.3.16/railsup-x86_64-apple-darwin.tar.gz
 
 # Linux x86_64
-curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.3.5/railsup-x86_64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.3.16/railsup-x86_64-unknown-linux-gnu.tar.gz
 
 # Linux ARM64
-curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.3.5/railsup-aarch64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/railsup-sh/railsup/releases/download/v0.3.16/railsup-aarch64-unknown-linux-gnu.tar.gz
 ```
 
 ## Directory Structure
@@ -168,7 +168,7 @@ The `exec` command runs any command with railsup's Ruby environment, bypassing r
 
 ## Status
 
-v0.3.5 — Shell integration. Ruby version management. AI agent context. Four platforms.
+v0.3.16 — Shell integration. Ruby version management. AI agent context. Four platforms.
 
 ## License
 

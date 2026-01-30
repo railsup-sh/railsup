@@ -1,0 +1,10 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rubocop (1.60.0)
+
+PLATFORMS
+  arm64-darwin
+
+BUNDLED WITH
+   2.5.6

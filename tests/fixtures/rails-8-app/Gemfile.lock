@@ -1,0 +1,22 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    actioncable (8.0.0)
+    actionmailbox (8.0.0)
+    actionmailer (8.0.0)
+    actionpack (8.0.0)
+    actiontext (8.0.0)
+    actionview (8.0.0)
+    activejob (8.0.0)
+    activemodel (8.0.0)
+    activerecord (8.0.0)
+    activestorage (8.0.0)
+    activesupport (8.0.0)
+    rails (8.0.0)
+
+PLATFORMS
+  arm64-darwin
+  x86_64-linux
+
+BUNDLED WITH
+   2.5.6

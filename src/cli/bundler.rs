@@ -643,6 +643,7 @@ mod tests {
 
     #[test]
     fn build_full_env_sets_bundle_gemfile() {
+        let _guard = ENV_MUTEX.lock().unwrap();
         let dir = tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("config")).unwrap();
         std::fs::write(dir.path().join("config/application.rb"), "").unwrap();

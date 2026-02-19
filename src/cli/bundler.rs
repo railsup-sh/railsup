@@ -9,6 +9,7 @@
 //! to ensure consistent behavior.
 
 use crate::paths;
+use crate::util::tls;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -270,6 +271,18 @@ pub fn build_ruby_env(version: &str) -> HashMap<String, String> {
     // Clear problematic variables that could interfere
     env.remove("RUBYOPT");
     env.remove("RUBYLIB");
+
+    // Ensure TLS cert paths are valid so HTTPS calls (Ruby/OpenSSL) work reliably.
+    let (cert_file, cert_dir) = tls::recommended_cert_env(
+        env.get("SSL_CERT_FILE").map(String::as_str),
+        env.get("SSL_CERT_DIR").map(String::as_str),
+    );
+    if let Some(path) = cert_file {
+        env.insert("SSL_CERT_FILE".into(), path);
+    }
+    if let Some(path) = cert_dir {
+        env.insert("SSL_CERT_DIR".into(), path);
+    }
 
     env
 }

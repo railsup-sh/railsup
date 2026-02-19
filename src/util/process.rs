@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use crate::util::tls;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
@@ -55,6 +56,18 @@ pub fn run_streaming_with_full_env<S: AsRef<OsStr>>(
     if let Some(gh) = gem_home {
         cmd.env("GEM_HOME", gh);
         cmd.env("GEM_PATH", gh);
+    }
+
+    // Ensure subprocesses use valid TLS CA paths when host defaults are invalid.
+    let cert_file_env = std::env::var("SSL_CERT_FILE").ok();
+    let cert_dir_env = std::env::var("SSL_CERT_DIR").ok();
+    let (cert_file, cert_dir) =
+        tls::recommended_cert_env(cert_file_env.as_deref(), cert_dir_env.as_deref());
+    if let Some(path) = cert_file {
+        cmd.env("SSL_CERT_FILE", path);
+    }
+    if let Some(path) = cert_dir {
+        cmd.env("SSL_CERT_DIR", path);
     }
 
     let status = cmd

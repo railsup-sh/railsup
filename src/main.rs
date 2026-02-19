@@ -28,7 +28,11 @@ fn run() -> Result<()> {
 
     // Handle subcommands
     match cli.command {
-        Some(Commands::New { name, force }) => cli::new::run(&name, force),
+        Some(Commands::New {
+            name,
+            force,
+            rails_args,
+        }) => cli::new::run(&name, force, &rails_args),
         Some(Commands::Dev { port }) => cli::dev::run(port),
         Some(Commands::Ruby(cmd)) => cli::ruby::run(cmd),
         Some(Commands::Which { command }) => cli::which::run(&command),

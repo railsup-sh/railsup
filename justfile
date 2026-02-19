@@ -72,66 +72,103 @@ tag ver:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    # Check for uncommitted changes (excluding Cargo.toml which we'll update)
-    if ! git diff --quiet -- ':!Cargo.toml' ':!Cargo.lock'; then
+    # Normalize input (allow "v0.3.17" or "0.3.17")
+    RAW_VER="{{ver}}"
+    NORMALIZED_VER="${RAW_VER#v}"
+
+    # Validate semver (X.Y.Z)
+    if [[ ! "$NORMALIZED_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Error: invalid version '$RAW_VER'. Use X.Y.Z (or vX.Y.Z)."
+        exit 1
+    fi
+
+    # Check for any working tree changes (including untracked), excluding Cargo files
+    STATUS_OUTPUT=$(git status --porcelain --untracked-files=all -- ':!Cargo.toml' ':!Cargo.lock')
+    if [ -n "$STATUS_OUTPUT" ]; then
         echo "Error: You have uncommitted changes. Commit or stash them first."
+        echo "$STATUS_OUTPUT"
         exit 1
     fi
 
     # Get current version from Cargo.toml
     CURRENT_VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
 
-    if [ "$CURRENT_VERSION" = "{{ver}}" ]; then
-        echo "Cargo.toml already at version {{ver}}"
+    if [ "$CURRENT_VERSION" = "$NORMALIZED_VER" ]; then
+        echo "Cargo.toml already at version $NORMALIZED_VER"
     else
-        echo "Updating Cargo.toml: $CURRENT_VERSION → {{ver}}"
-        sed -i 's/^version = ".*"/version = "{{ver}}"/' Cargo.toml
+        echo "Updating Cargo.toml: $CURRENT_VERSION -> $NORMALIZED_VER"
+        # Portable in-place edit (works on macOS + Linux)
+        perl -0777 -i -pe "s/^version = \".*\"/version = \"$NORMALIZED_VER\"/m" Cargo.toml
 
         # Update Cargo.lock
         cargo check --quiet 2>/dev/null || true
 
         git add Cargo.toml Cargo.lock
-        git commit -m "Bump version to {{ver}}"
-        git push origin HEAD
+        git commit -m "Bump version to $NORMALIZED_VER"
     fi
 
-    echo "Creating tag v{{ver}}..."
-    git tag -a "v{{ver}}" -m "Release {{ver}}"
-    echo "Pushing tag to origin..."
-    git push origin "v{{ver}}"
+    if git rev-parse -q --verify "refs/tags/v$NORMALIZED_VER" >/dev/null; then
+        echo "Error: tag v$NORMALIZED_VER already exists locally."
+        exit 1
+    fi
+
+    if git ls-remote --exit-code --tags origin "refs/tags/v$NORMALIZED_VER" >/dev/null 2>&1; then
+        echo "Error: tag v$NORMALIZED_VER already exists on origin."
+        exit 1
+    fi
+
+    echo "Creating tag v$NORMALIZED_VER..."
+    git tag -a "v$NORMALIZED_VER" -m "Release $NORMALIZED_VER"
+    echo "Pushing commit and tag to origin..."
+    git push origin HEAD "v$NORMALIZED_VER"
     echo ""
-    echo "Tagged and pushed v{{ver}}"
+    echo "Tagged and pushed v$NORMALIZED_VER"
     echo "GitHub Actions will build and publish to bkt.sh"
 
 # Preview what tag would do without making changes
 tag-dry-run ver:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "=== DRY RUN: tag {{ver}} ==="
+    RAW_VER="{{ver}}"
+    NORMALIZED_VER="${RAW_VER#v}"
+    echo "=== DRY RUN: tag $RAW_VER (normalized: $NORMALIZED_VER) ==="
     echo ""
 
-    # Check for uncommitted changes
-    if ! git diff --quiet -- ':!Cargo.toml' ':!Cargo.lock'; then
+    # Validate semver (X.Y.Z)
+    if [[ ! "$NORMALIZED_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "✗ Invalid version '$RAW_VER'. Expected X.Y.Z (or vX.Y.Z)."
+        exit 1
+    fi
+
+    # Check for any working tree changes (including untracked), excluding Cargo files
+    STATUS_OUTPUT=$(git status --porcelain --untracked-files=all -- ':!Cargo.toml' ':!Cargo.lock')
+    if [ -n "$STATUS_OUTPUT" ]; then
         echo "⚠ Warning: You have uncommitted changes"
-        git status --short -- ':!Cargo.toml' ':!Cargo.lock'
+        echo "$STATUS_OUTPUT"
         echo ""
     fi
 
     # Get current version from Cargo.toml
     CURRENT_VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
 
-    if [ "$CURRENT_VERSION" = "{{ver}}" ]; then
-        echo "✓ Cargo.toml already at version {{ver}}"
+    if [ "$CURRENT_VERSION" = "$NORMALIZED_VER" ]; then
+        echo "✓ Cargo.toml already at version $NORMALIZED_VER"
     else
-        echo "→ Would update Cargo.toml: $CURRENT_VERSION → {{ver}}"
-        echo "→ Would commit: \"Bump version to {{ver}}\""
-        echo "→ Would push commit to origin"
+        echo "-> Would update Cargo.toml: $CURRENT_VERSION -> $NORMALIZED_VER"
+        echo "-> Would commit: \"Bump version to $NORMALIZED_VER\""
     fi
 
-    echo "→ Would create tag: v{{ver}}"
-    echo "→ Would push tag to origin"
+    if git rev-parse -q --verify "refs/tags/v$NORMALIZED_VER" >/dev/null; then
+        echo "✗ Tag already exists locally: v$NORMALIZED_VER"
+    fi
+    if git ls-remote --exit-code --tags origin "refs/tags/v$NORMALIZED_VER" >/dev/null 2>&1; then
+        echo "✗ Tag already exists on origin: v$NORMALIZED_VER"
+    fi
+
+    echo "-> Would create tag: v$NORMALIZED_VER"
+    echo "-> Would push commit and tag in one command: git push origin HEAD v$NORMALIZED_VER"
     echo ""
-    echo "Run 'just tag {{ver}}' to execute"
+    echo "Run 'just tag $RAW_VER' to execute"
 
 # Delete a tag locally and remotely
 tag-delete ver:

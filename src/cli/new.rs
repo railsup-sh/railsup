@@ -27,7 +27,7 @@ fn get_rails_version() -> String {
     fetch_latest_rails_version().unwrap_or_else(|| FALLBACK_RAILS_VERSION.to_string())
 }
 
-pub fn run(name: &str, force: bool) -> Result<()> {
+pub fn run(name: &str, force: bool, rails_args: &[String]) -> Result<()> {
     // 1. Validate name - reject path separators for safety
     validate_app_name(name)?;
 
@@ -57,19 +57,23 @@ pub fn run(name: &str, force: bool) -> Result<()> {
     let gems_bin = paths::gems_bin_dir(&ruby_version);
     let rails_path = gems_bin.join("rails");
     let rails_version_arg = format!("_{}_", rails_version);
+    let mut args: Vec<String> = vec![
+        rails_version_arg,
+        "new".to_string(),
+        name.to_string(),
+        "--database=sqlite3".to_string(),
+        "--css=tailwind".to_string(),
+        "--javascript=importmap".to_string(),
+        "--skip-jbuilder".to_string(),
+        "--skip-action-mailbox".to_string(),
+        "--skip-action-text".to_string(),
+    ];
+    args.extend(rails_args.iter().cloned());
+    let args_ref: Vec<&str> = args.iter().map(String::as_str).collect();
+
     let status = process::run_streaming_with_full_env(
         rails_path.to_str().unwrap(),
-        &[
-            rails_version_arg.as_str(),
-            "new",
-            name,
-            "--database=sqlite3",
-            "--css=tailwind",
-            "--javascript=importmap",
-            "--skip-jbuilder",
-            "--skip-action-mailbox",
-            "--skip-action-text",
-        ],
+        &args_ref,
         None,
         Some(&ruby_bin),
         Some(&gem_home),

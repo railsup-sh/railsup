@@ -23,6 +23,10 @@ pub enum Commands {
         /// Overwrite existing directory
         #[arg(short, long)]
         force: bool,
+
+        /// Additional arguments forwarded to `rails new`
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        rails_args: Vec<String>,
     },
 
     /// Start the development server
@@ -85,3 +89,33 @@ pub mod new;
 pub mod ruby;
 pub mod shell_init;
 pub mod which;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_accepts_forwarded_rails_args() {
+        let cli = Cli::try_parse_from([
+            "railsup",
+            "new",
+            "myapp",
+            "--database=postgresql",
+            "--skip-git",
+        ])
+        .expect("should parse forwarded rails args");
+
+        match cli.command {
+            Some(Commands::New {
+                name,
+                force,
+                rails_args,
+            }) => {
+                assert_eq!(name, "myapp");
+                assert!(!force);
+                assert_eq!(rails_args, vec!["--database=postgresql", "--skip-git"]);
+            }
+            _ => panic!("expected new command"),
+        }
+    }
+}
